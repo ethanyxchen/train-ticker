@@ -1,6 +1,5 @@
 import { searchNationalRailStations } from "@/lib/data/national-rail-stations";
 import {
-  appendSearchParams,
   dedupeText,
   delayMinutes,
   fetchJson,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/journeys/provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import type { JourneyProvider } from "@/lib/journeys/providers/base";
+import { buildRailRequestUrl } from "@/lib/journeys/providers/national-rail-request";
 import type {
   BoardField,
   JourneySnapshot,
@@ -101,62 +101,6 @@ function getRailConnection(): RailConnection | null {
   }
 
   return null;
-}
-
-function replacePathPlaceholders(url: string, journey: SavedJourney): string {
-  const origin = journey.origin.id.toUpperCase();
-  const destination = journey.destination.id.toUpperCase();
-
-  return url.replace(/\{([^}]+)\}/g, (_, rawKey: string) => {
-    switch (rawKey.trim().toLowerCase()) {
-      case "crs":
-      case "origin":
-      case "from":
-        return origin;
-      case "filtercrs":
-      case "filterlist":
-      case "destination":
-      case "to":
-        return destination;
-      default:
-        return origin;
-    }
-  });
-}
-
-function normalizeRailProxyUrl(url: string): string {
-  const trimmed = url.replace(/\/$/, "");
-
-  if (/GetDepartureBoard/i.test(trimmed)) {
-    return trimmed.replace(/GetDepartureBoard/gi, "GetDepBoardWithDetails");
-  }
-
-  return trimmed;
-}
-
-function buildRailRequestUrl(
-  journey: SavedJourney,
-  connection: RailConnection,
-  params?: {
-    timeOffset?: number;
-    timeWindow?: number;
-    numRows?: number;
-  },
-): string {
-  const operationPath = `/GetDepBoardWithDetails/${journey.origin.id.toUpperCase()}`;
-  let requestUrl = normalizeRailProxyUrl(connection.proxyUrl);
-
-  if (/\{[^}]+\}/.test(requestUrl)) {
-    requestUrl = replacePathPlaceholders(requestUrl, journey);
-  } else if (!/GetDepBoardWithDetails/i.test(requestUrl)) {
-    requestUrl = `${requestUrl}${operationPath}`;
-  }
-
-  return appendSearchParams(requestUrl, {
-    numRows: params?.numRows ?? 20,
-    timeOffset: params?.timeOffset ?? 0,
-    timeWindow: params?.timeWindow ?? 180,
-  });
 }
 
 function buildRailHeaders(connection: RailConnection): Record<string, string> {
