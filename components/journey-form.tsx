@@ -3,14 +3,14 @@
 import { useDeferredValue, useEffect, useState } from "react";
 
 import type {
+  JourneyDefinition,
   JourneyLocation,
   JourneyProviderId,
   JourneySearchResult,
-  SavedJourney,
 } from "@/lib/journeys/types";
 
 interface JourneyFormProps {
-  onAddJourney: (journey: Omit<SavedJourney, "id">) => void;
+  onAddJourney: (journey: JourneyDefinition) => void;
 }
 
 interface SearchFieldProps {
@@ -147,7 +147,6 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
 
         onAddJourney({
           provider,
-          name: `${origin.label} to ${destination.label}`,
           origin,
           destination,
         });

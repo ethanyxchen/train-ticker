@@ -14,12 +14,15 @@ export interface JourneySearchResult extends JourneyLocation {
   provider: JourneyProviderId;
 }
 
-export interface SavedJourney {
-  id: string;
-  name: string;
+export interface JourneyDefinition {
   provider: JourneyProviderId;
   origin: JourneyLocation;
   destination: JourneyLocation;
+}
+
+export interface SavedJourney extends JourneyDefinition {
+  id: string;
+  name: string;
 }
 
 export interface BoardField {
