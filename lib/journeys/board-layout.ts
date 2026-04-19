@@ -34,6 +34,28 @@ function getAdditionalTickerWidthRem() {
   return getSplitFlapWidthRem(2) - getSplitFlapWidthRem(1);
 }
 
+function getSharedTickerLength(
+  rows: BoardStationRow[],
+  keys: Array<
+    "originFull" | "originAbbreviated" | "destinationFull" | "destinationAbbreviated"
+  >,
+  minimum: number,
+) {
+  return keys.reduce<number>(
+    (longest, key) => Math.max(longest, getMaxStationLength(rows, key, minimum)),
+    minimum,
+  );
+}
+
+function withSharedColumns(tickers: BoardTickers, sharedLength: number): BoardTickers {
+  return {
+    ...tickers,
+    origin: sharedLength,
+    destination: sharedLength,
+    status: sharedLength,
+  };
+}
+
 function getMaxStationLength(
   rows: BoardStationRow[],
   key:
@@ -65,41 +87,38 @@ export function resolveBoardStationLayout({
   rows,
   gapRem,
 }: ResolveBoardStationLayoutOptions): ResolvedBoardLayout {
-  const fullTickers = {
-    ...baseTickers,
-    origin: getMaxStationLength(rows, "originFull", baseTickers.origin),
-    destination: getMaxStationLength(
+  const fullTickers = withSharedColumns(
+    baseTickers,
+    getSharedTickerLength(
       rows,
-      "destinationFull",
-      baseTickers.destination,
+      ["originFull", "destinationFull"],
+      baseTickers.status,
     ),
-  };
-  const abbreviatedTickers = {
-    ...baseTickers,
-    origin: getMaxStationLength(
+  );
+  const abbreviatedTickers = withSharedColumns(
+    baseTickers,
+    getSharedTickerLength(
       rows,
-      "originAbbreviated",
-      baseTickers.origin,
+      ["originAbbreviated", "destinationAbbreviated"],
+      baseTickers.status,
     ),
-    destination: getMaxStationLength(rows, "destinationAbbreviated", 3),
-  };
+  );
   const useStationAbbreviations =
     rows.length > 0 && availableRem < getBoardWidthRem(fullTickers, gapRem);
   const minimumTickers = useStationAbbreviations
     ? abbreviatedTickers
     : fullTickers;
-  const extraCells = Math.max(
+  const extraSharedCells = Math.max(
     Math.floor(
       (availableRem - getBoardWidthRem(minimumTickers, gapRem)) /
-        getAdditionalTickerWidthRem(),
+        (getAdditionalTickerWidthRem() * 3),
     ),
     0,
   );
-  const tickers = {
-    ...minimumTickers,
-    origin: minimumTickers.origin + Math.ceil(extraCells / 2),
-    status: minimumTickers.status + Math.floor(extraCells / 2),
-  };
+  const tickers = withSharedColumns(
+    minimumTickers,
+    minimumTickers.origin + extraSharedCells,
+  );
 
   return {
     tickers,

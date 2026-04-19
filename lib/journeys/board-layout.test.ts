@@ -32,7 +32,8 @@ test("keeps full station names when the viewport can fit them", () => {
       {
         ...BASE_TICKERS,
         origin: "London St Pancras".length,
-        destination: BASE_TICKERS.destination,
+        destination: "London St Pancras".length,
+        status: "London St Pancras".length,
       },
       GAP_REM,
     ) + 0.1;
@@ -45,7 +46,8 @@ test("keeps full station names when the viewport can fit them", () => {
 
   assert.equal(layout.useStationAbbreviations, false);
   assert.equal(layout.tickers.origin, "London St Pancras".length);
-  assert.equal(layout.tickers.destination, BASE_TICKERS.destination);
+  assert.equal(layout.tickers.destination, "London St Pancras".length);
+  assert.equal(layout.tickers.status, "London St Pancras".length);
 });
 
 test("switches to abbreviations when the viewport cannot fit the longest names", () => {
@@ -60,8 +62,9 @@ test("switches to abbreviations when the viewport cannot fit the longest names",
   const abbreviatedWidthRem = getBoardWidthRem(
     {
       ...BASE_TICKERS,
-      origin: 3,
-      destination: 3,
+      origin: BASE_TICKERS.status,
+      destination: BASE_TICKERS.status,
+      status: BASE_TICKERS.status,
     },
     GAP_REM,
   );
@@ -73,8 +76,9 @@ test("switches to abbreviations when the viewport cannot fit the longest names",
   });
 
   assert.equal(layout.useStationAbbreviations, true);
-  assert.equal(layout.tickers.origin, 3);
-  assert.equal(layout.tickers.destination, 3);
+  assert.equal(layout.tickers.origin, BASE_TICKERS.status);
+  assert.equal(layout.tickers.destination, BASE_TICKERS.status);
+  assert.equal(layout.tickers.status, BASE_TICKERS.status);
 });
 
 test("uses a dynamic cutoff derived from the current row lengths", () => {
@@ -98,8 +102,9 @@ test("uses a dynamic cutoff derived from the current row lengths", () => {
     getBoardWidthRem(
       {
         ...BASE_TICKERS,
-        origin: "York".length,
-        destination: BASE_TICKERS.destination,
+        origin: BASE_TICKERS.status,
+        destination: BASE_TICKERS.status,
+        status: BASE_TICKERS.status,
       },
       GAP_REM,
     ) + 1;
@@ -118,4 +123,24 @@ test("uses a dynamic cutoff derived from the current row lengths", () => {
 
   assert.equal(shortLayout.useStationAbbreviations, false);
   assert.equal(longLayout.useStationAbbreviations, true);
+});
+
+test("keeps origin destination and status widths equal", () => {
+  const rows: BoardStationRow[] = [
+    {
+      originFull: "London Kings Cross",
+      originAbbreviated: "KGX",
+      destinationFull: "Cambridge",
+      destinationAbbreviated: "CBG",
+    },
+  ];
+  const layout = resolveBoardStationLayout({
+    availableRem: 120,
+    baseTickers: BASE_TICKERS,
+    rows,
+    gapRem: GAP_REM,
+  });
+
+  assert.equal(layout.tickers.origin, layout.tickers.destination);
+  assert.equal(layout.tickers.destination, layout.tickers.status);
 });
