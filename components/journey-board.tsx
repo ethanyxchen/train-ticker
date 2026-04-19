@@ -218,7 +218,7 @@ function toBoardIssue(
     id: journey.id,
     route: `${journey.origin.label} to ${journey.destination.label}`,
     headline: snapshot.headline,
-    detail: snapshot.alerts[0] ?? snapshot.subheadline,
+    detail: snapshot.subheadline,
     tone: snapshot.status === "error" ? "bad" : "warn",
   };
 }
