@@ -1,4 +1,4 @@
-const SPLIT_FLAP_SCALE = 1.1;
+const SPLIT_FLAP_SCALE = 1.15;
 
 export const SPLIT_FLAP_CELL = {
   widthRem: 1.376 * SPLIT_FLAP_SCALE,

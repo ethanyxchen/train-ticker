@@ -64,10 +64,10 @@ const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "time", label: "Time", align: "right" },
-  { key: "origin", label: "Orig" },
-  { key: "destination", label: "Dest" },
-  { key: "operator", label: "Op" },
-  { key: "platform", label: "Pl" },
+  { key: "origin", label: "Origin" },
+  { key: "destination", label: "Destination" },
+  { key: "operator", label: "Operator" },
+  { key: "platform", label: "Platform" },
   { key: "status", label: "Status" },
 ];
 const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardColumn[]] = [
