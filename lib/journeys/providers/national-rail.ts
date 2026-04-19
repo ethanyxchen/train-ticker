@@ -1,0 +1,537 @@
+import { NATIONAL_RAIL_SEED_STATIONS } from "@/lib/data/national-rail-seed-stations";
+import {
+  appendSearchParams,
+  dedupeText,
+  delayMinutes,
+  fetchJson,
+  formatBoardValue,
+} from "@/lib/journeys/provider-utils";
+import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
+import type { JourneyProvider } from "@/lib/journeys/providers/base";
+import type {
+  BoardField,
+  JourneySearchResult,
+  JourneySnapshot,
+  JourneySnapshotStatus,
+  SavedJourney,
+} from "@/lib/journeys/types";
+
+interface DarwinMessage {
+  Value?: string;
+}
+
+interface DarwinServiceLocation {
+  locationName?: string;
+  crs?: string;
+}
+
+interface DarwinCallingPoint {
+  locationName?: string;
+  crs?: string;
+  st?: string;
+  et?: string;
+  at?: string;
+  isCancelled?: boolean;
+  delayReason?: string;
+  cancelReason?: string;
+}
+
+interface DarwinCallingPointGroup {
+  callingPoint?: DarwinCallingPoint[];
+}
+
+interface DarwinService {
+  sta?: string;
+  eta?: string;
+  std?: string;
+  etd?: string;
+  platform?: string;
+  operator?: string;
+  operatorCode?: string;
+  isCancelled?: boolean;
+  cancelReason?: string;
+  delayReason?: string;
+  adhocAlerts?: string[];
+  destination?: DarwinServiceLocation[];
+  subsequentCallingPoints?: DarwinCallingPointGroup[];
+  serviceID?: string;
+}
+
+interface DarwinStationBoard {
+  generatedAt?: string;
+  locationName?: string;
+  filterLocationName?: string;
+  trainServices?: DarwinService[];
+  busServices?: DarwinService[];
+  ferryServices?: DarwinService[];
+  nrccMessages?: DarwinMessage[];
+}
+
+type RailProxyAuthType = "api-key" | "bearer";
+
+type RailConnection = {
+  kind: "rdm-proxy";
+  authType: RailProxyAuthType;
+  proxyUrl: string;
+  consumerKey: string;
+  consumerSecret?: string;
+};
+
+function normalizeEnvValue(value?: string): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function getRailConnection(): RailConnection | null {
+  const proxyUrl = normalizeEnvValue(process.env.DARWIN_RDM_PROXY_URL);
+  const consumerKey = normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_KEY);
+  const consumerSecret = normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_SECRET);
+  const authType =
+    normalizeEnvValue(process.env.DARWIN_RDM_AUTH_TYPE)?.toLowerCase() === "bearer"
+      ? "bearer"
+      : "api-key";
+
+  if (proxyUrl && consumerKey) {
+    return {
+      kind: "rdm-proxy",
+      authType,
+      proxyUrl,
+      consumerKey,
+      consumerSecret: consumerSecret ?? undefined,
+    };
+  }
+
+  return null;
+}
+
+function replacePathPlaceholders(url: string, journey: SavedJourney): string {
+  const origin = journey.origin.id.toUpperCase();
+  const destination = journey.destination.id.toUpperCase();
+
+  return url.replace(/\{([^}]+)\}/g, (_, rawKey: string) => {
+    switch (rawKey.trim().toLowerCase()) {
+      case "crs":
+      case "origin":
+      case "from":
+        return origin;
+      case "filtercrs":
+      case "filterlist":
+      case "destination":
+      case "to":
+        return destination;
+      default:
+        return origin;
+    }
+  });
+}
+
+function normalizeRailProxyUrl(url: string): string {
+  const trimmed = url.replace(/\/$/, "");
+
+  if (/GetDepartureBoard/i.test(trimmed)) {
+    return trimmed.replace(/GetDepartureBoard/gi, "GetDepBoardWithDetails");
+  }
+
+  return trimmed;
+}
+
+function buildRailRequestUrl(
+  journey: SavedJourney,
+  connection: RailConnection,
+  params?: {
+    timeOffset?: number;
+    timeWindow?: number;
+    numRows?: number;
+  },
+): string {
+  const operationPath = `/GetDepBoardWithDetails/${journey.origin.id.toUpperCase()}`;
+  let requestUrl = normalizeRailProxyUrl(connection.proxyUrl);
+
+  if (/\{[^}]+\}/.test(requestUrl)) {
+    requestUrl = replacePathPlaceholders(requestUrl, journey);
+  } else if (!/GetDepBoardWithDetails/i.test(requestUrl)) {
+    requestUrl = `${requestUrl}${operationPath}`;
+  }
+
+  return appendSearchParams(requestUrl, {
+    numRows: params?.numRows ?? 20,
+    timeOffset: params?.timeOffset ?? 0,
+    timeWindow: params?.timeWindow ?? 180,
+  });
+}
+
+function buildRailHeaders(connection: RailConnection): Record<string, string> {
+  return connection.authType === "bearer"
+    ? {
+        Authorization: `Bearer ${connection.consumerKey}`,
+      }
+    : {
+        "x-apikey": connection.consumerKey,
+      };
+}
+
+function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
+  const hasProxyKey = Boolean(normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_KEY));
+  const hasProxySecret = Boolean(
+    normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_SECRET),
+  );
+  const missingProxyUrl = hasProxyKey && !normalizeEnvValue(process.env.DARWIN_RDM_PROXY_URL);
+  const subheadline = missingProxyUrl
+    ? "Add DARWIN_RDM_PROXY_URL from the Rail Data Marketplace Specification tab."
+    : "Add DARWIN_RDM_PROXY_URL and DARWIN_RDM_CONSUMER_KEY to enable live National Rail departures.";
+  const alerts = ["National Rail live boards use the Rail Data Marketplace proxy URL and consumer key."];
+
+  if (hasProxySecret) {
+    alerts.push(
+      "The consumer secret is stored for compatibility but is not sent for the current Darwin API-key flow.",
+    );
+  }
+
+  return {
+    journeyId: journey.id,
+    provider: "national-rail",
+    status: "unconfigured",
+    headline: "Darwin credentials required",
+    subheadline,
+    refreshedAt: new Date().toISOString(),
+    boardFields: [
+      { label: "FROM", value: journey.origin.id },
+      { label: "TO", value: journey.destination.id },
+      { label: "STATE", value: "SET UP", tone: "warn" },
+    ],
+    options: [],
+    alerts,
+  };
+}
+
+function getServiceCallingPoints(service?: DarwinService): DarwinCallingPoint[] {
+  return service?.subsequentCallingPoints?.flatMap((group) => group.callingPoint ?? []) ?? [];
+}
+
+function findJourneyCallingPoint(
+  service: DarwinService | undefined,
+  journey: SavedJourney,
+): DarwinCallingPoint | undefined {
+  const destinationId = journey.destination.id.toUpperCase();
+
+  return getServiceCallingPoints(service).find(
+    (callingPoint) => callingPoint.crs?.toUpperCase() === destinationId,
+  );
+}
+
+function serviceMatchesJourney(
+  service: DarwinService | undefined,
+  journey: SavedJourney,
+): boolean {
+  if (!service) {
+    return false;
+  }
+
+  if (findJourneyCallingPoint(service, journey)) {
+    return true;
+  }
+
+  const destinationId = journey.destination.id.toUpperCase();
+
+  return (
+    service.destination?.some(
+      (location) => location.crs?.toUpperCase() === destinationId,
+    ) ?? false
+  );
+}
+
+function getJourneyArrival(
+  service: DarwinService | undefined,
+  journey: SavedJourney,
+): {
+  scheduled?: string;
+  expected?: string;
+  callingPoint?: DarwinCallingPoint;
+} {
+  const callingPoint = findJourneyCallingPoint(service, journey);
+
+  if (callingPoint) {
+    return {
+      scheduled: callingPoint.st,
+      expected: callingPoint.at ?? callingPoint.et,
+      callingPoint,
+    };
+  }
+
+  return {
+    scheduled: service?.sta,
+    expected: service?.eta,
+  };
+}
+
+function pickRailStatus(
+  service?: DarwinService,
+  arrival?: { scheduled?: string; expected?: string; callingPoint?: DarwinCallingPoint },
+): JourneySnapshotStatus {
+  if (!service) {
+    return "warning";
+  }
+
+  if (
+    service.isCancelled ||
+    service.etd?.toLowerCase() === "cancelled" ||
+    arrival?.callingPoint?.isCancelled
+  ) {
+    return "error";
+  }
+
+  const delay = delayMinutes(
+    arrival?.scheduled ?? service.std,
+    arrival?.expected ?? service.etd,
+  );
+
+  if (delay !== null && delay > 0) {
+    return "warning";
+  }
+
+  if (
+    arrival?.expected &&
+    arrival.expected !== "On time" &&
+    arrival.expected !== arrival.scheduled &&
+    !/^\d{2}:\d{2}$/.test(arrival.expected)
+  ) {
+    return "warning";
+  }
+
+  return "ok";
+}
+
+function buildRailHeadline(
+  service: DarwinService | undefined,
+  arrival: { scheduled?: string; expected?: string; callingPoint?: DarwinCallingPoint },
+): string {
+  if (!service) {
+    return "No matching departures found";
+  }
+
+  if (
+    service.isCancelled ||
+    service.etd?.toLowerCase() === "cancelled" ||
+    arrival.callingPoint?.isCancelled
+  ) {
+    return "Next matching service cancelled";
+  }
+
+  const delay = delayMinutes(
+    arrival.scheduled ?? service.std,
+    arrival.expected ?? service.etd,
+  );
+
+  if (delay !== null && delay > 0) {
+    return `${delay} minute delay on next matching service`;
+  }
+
+  if (
+    arrival.expected === "On time" ||
+    arrival.expected === arrival.scheduled ||
+    (!arrival.expected && (service.etd === "On time" || service.etd === service.std))
+  ) {
+    return "Next matching service on time";
+  }
+
+  if (arrival.expected) {
+    return `Next matching service expected ${arrival.expected}`;
+  }
+
+  if (service.etd) {
+    return `Next matching service expected ${service.etd}`;
+  }
+
+  return "Next matching service found";
+}
+
+function buildRailFields(
+  service: DarwinService | undefined,
+  arrival: { scheduled?: string; expected?: string; callingPoint?: DarwinCallingPoint },
+): BoardField[] {
+  return [
+    {
+      label: "DEP",
+      value: formatBoardValue(service?.std),
+      tone: "neutral",
+    },
+    {
+      label: "LIVE",
+      value: formatBoardValue(service?.etd, "BOARD"),
+      tone: pickRailStatus(service, arrival) === "ok" ? "good" : "warn",
+    },
+    {
+      label: "ARR",
+      value: formatBoardValue(arrival.expected ?? arrival.scheduled),
+      tone: "neutral",
+    },
+    {
+      label: "PLAT",
+      value: formatBoardValue(service?.platform),
+      tone: "neutral",
+    },
+    {
+      label: "OPER",
+      value: formatBoardValue(service?.operator),
+      tone: "neutral",
+    },
+  ];
+}
+
+function getBoardServices(board: DarwinStationBoard): DarwinService[] {
+  return [
+    ...(board.trainServices ?? []),
+    ...(board.busServices ?? []),
+    ...(board.ferryServices ?? []),
+  ];
+}
+
+async function loadRailBoards(
+  journey: SavedJourney,
+  connection: RailConnection,
+): Promise<DarwinStationBoard[]> {
+  const boards: DarwinStationBoard[] = [];
+
+  for (const timeOffset of [0, 60, 90]) {
+    const requestUrl = buildRailRequestUrl(journey, connection, {
+      timeOffset,
+      timeWindow: 120,
+      numRows: 20,
+    });
+    const board = await fetchJson<DarwinStationBoard>(requestUrl, {
+      headers: buildRailHeaders(connection),
+    });
+    boards.push(board);
+
+    const matches = getBoardServices(board).filter((service) =>
+      serviceMatchesJourney(service, journey),
+    );
+
+    if (matches.length >= JOURNEY_BOARD_ROW_COUNT) {
+      break;
+    }
+  }
+
+  return boards;
+}
+
+function dedupeRailServices(services: DarwinService[]): DarwinService[] {
+  const seen = new Set<string>();
+
+  return services.filter((service) => {
+    const key = service.serviceID ?? `${service.std ?? ""}-${service.etd ?? ""}-${service.destination?.[0]?.crs ?? ""}-${service.operator ?? ""}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function searchSeedStations(query: string): JourneySearchResult[] {
+  const normalized = query.trim().toLowerCase();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const matches = NATIONAL_RAIL_SEED_STATIONS.filter((station) => {
+    return (
+      station.id.toLowerCase().includes(normalized) ||
+      station.label.toLowerCase().includes(normalized) ||
+      station.secondaryLabel?.toLowerCase().includes(normalized)
+    );
+  }).slice(0, 8);
+
+  const manualCode = query.trim().toUpperCase();
+
+  if (/^[A-Z]{3}$/.test(manualCode) && !matches.some((match) => match.id === manualCode)) {
+    matches.unshift({
+      id: manualCode,
+      label: manualCode,
+      secondaryLabel: "Manual CRS entry",
+      provider: "national-rail",
+    });
+  }
+
+  return matches;
+}
+
+export const nationalRailProvider: JourneyProvider = {
+  id: "national-rail",
+  async search(query) {
+    return searchSeedStations(query);
+  },
+  async getSnapshot(journey) {
+    const connection = getRailConnection();
+
+    if (!connection) {
+      return buildUnconfiguredSnapshot(journey);
+    }
+
+    const boards = await loadRailBoards(journey, connection);
+    const board = boards[0];
+    const departures = dedupeRailServices(
+      boards.flatMap((candidateBoard) =>
+        getBoardServices(candidateBoard).filter((service) =>
+          serviceMatchesJourney(service, journey),
+        ),
+      ),
+    ).slice(0, JOURNEY_BOARD_ROW_COUNT);
+    const firstService = departures[0];
+    const firstArrival = getJourneyArrival(firstService, journey);
+    const status = pickRailStatus(firstService, firstArrival);
+
+    const alerts = dedupeText([
+      ...((board.nrccMessages ?? []).map((message) => message.Value)),
+      firstService?.cancelReason,
+      firstService?.delayReason,
+      firstArrival.callingPoint?.cancelReason,
+      firstArrival.callingPoint?.delayReason,
+      ...(firstService?.adhocAlerts ?? []),
+    ]);
+
+    return {
+      journeyId: journey.id,
+      provider: "national-rail",
+      status,
+      headline: buildRailHeadline(firstService, firstArrival),
+      subheadline:
+        departures.length > 0
+          ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
+          : `No matching services returned for ${journey.origin.label} to ${journey.destination.label}`,
+      refreshedAt: board.generatedAt ?? new Date().toISOString(),
+      boardFields: buildRailFields(firstService, firstArrival),
+      options: departures.map((service, index) => {
+        const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
+        const destinationName =
+          findJourneyCallingPoint(service, journey)?.locationName ??
+          service?.destination?.[0]?.locationName ??
+          journey.destination.label;
+        const arrival = getJourneyArrival(service, journey);
+
+        return {
+          id: service?.serviceID ?? `${journey.id}-${index}`,
+          title: destinationName,
+          scheduledDeparture: service?.std,
+          expectedDeparture: service?.etd,
+          scheduledArrival: arrival.scheduled,
+          expectedArrival: arrival.expected,
+          platform: service?.platform,
+          operator: service?.operator,
+          note:
+            callingPoints.length > 0
+              ? `Calling at ${callingPoints
+                  .slice(0, 3)
+                  .map((callingPoint) => callingPoint.locationName)
+                  .filter(Boolean)
+                  .join(", ")}`
+              : undefined,
+        };
+      }),
+      alerts,
+    };
+  },
+};

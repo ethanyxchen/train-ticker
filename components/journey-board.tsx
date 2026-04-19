@@ -8,6 +8,7 @@ import {
   getSplitFlapWidth,
   getSplitFlapWidthRem,
 } from "@/components/split-flap-text";
+import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import type {
   JourneySnapshot,
   JourneySnapshotTone,
@@ -32,7 +33,6 @@ interface BoardRow {
   removable: boolean;
 }
 
-const MINIMUM_ROWS = 6;
 const BOARD_TICKERS = {
   time: 5,
   destination: 22,
@@ -189,23 +189,25 @@ function toBoardRows(
     return [buildFallbackRow(journey, snapshot)];
   }
 
-  return snapshot.options.slice(0, 3).map((option, index) => {
-    const optionStatus = getOptionStatus(snapshot, option);
+  return snapshot.options
+    .slice(0, JOURNEY_BOARD_ROW_COUNT)
+    .map((option, index) => {
+      const optionStatus = getOptionStatus(snapshot, option);
 
-    return {
-      id: `${journey.id}-${option.id}-${index}`,
-      journeyId: journey.id,
-      time: normalizeBoardValue(
-        option.scheduledDeparture ?? option.expectedDeparture,
-        "--:--",
-      ),
-      destination: formatStationLabel(journey.destination.label),
-      platform: normalizeBoardValue(option.platform, "--"),
-      status: normalizeBoardValue(optionStatus.value, "WAIT"),
-      statusTone: optionStatus.tone,
-      removable: index === 0,
-    };
-  });
+      return {
+        id: `${journey.id}-${option.id}-${index}`,
+        journeyId: journey.id,
+        time: normalizeBoardValue(
+          option.scheduledDeparture ?? option.expectedDeparture,
+          "--:--",
+        ),
+        destination: formatStationLabel(journey.destination.label),
+        platform: normalizeBoardValue(option.platform, "--"),
+        status: normalizeBoardValue(optionStatus.value, "WAIT"),
+        statusTone: optionStatus.tone,
+        removable: index === 0,
+      };
+    });
 }
 
 function EmptyRow() {
@@ -245,7 +247,7 @@ export function JourneyBoard({
   const rows = journeys.flatMap((journey) =>
     toBoardRows(journey, snapshots[journey.id]),
   );
-  const emptyRowCount = Math.max(MINIMUM_ROWS - rows.length, 0);
+  const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
 
   return (
     <section className="rounded-[1.7rem] border-[8px] border-[#bcb7af] bg-[linear-gradient(180deg,#d8d3cc,#a7a39d)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)]">

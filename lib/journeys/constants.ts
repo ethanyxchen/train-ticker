@@ -1,0 +1,1 @@
+export const JOURNEY_BOARD_ROW_COUNT = 6;
