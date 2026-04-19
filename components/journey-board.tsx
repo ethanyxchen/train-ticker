@@ -359,8 +359,10 @@ export function JourneyBoard({
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
-  const alertCount = snapshot?.alerts.length ?? 0;
-  const alerts = snapshot?.alerts.slice(0, 3) ?? [];
+  const allAlerts = snapshot?.alerts ?? [];
+  const alertCount = allAlerts.length;
+  const issueAlerts = issue ? allAlerts.slice(0, 3) : [];
+  const footerAlerts = issue ? [] : allAlerts.slice(0, 3);
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
@@ -436,6 +438,23 @@ export function JourneyBoard({
                 {issue.headline}
               </div>
               {issue.subheadline ? <div>{issue.subheadline}</div> : null}
+              {issueAlerts.length > 0 ? (
+                <div className="space-y-2 pt-2 text-[0.78rem] normal-case tracking-normal text-[rgba(247,244,238,0.78)]">
+                  {issueAlerts.map((alert, index) => (
+                    <div
+                      key={`${snapshot?.journeyId ?? journey.id}-issue-alert-${index}`}
+                      className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
+                    >
+                      {alert}
+                    </div>
+                  ))}
+                  {alertCount > issueAlerts.length ? (
+                    <div className="px-1 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+                      +{alertCount - issueAlerts.length} more alerts
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -510,9 +529,9 @@ export function JourneyBoard({
         </div>
       </div>
 
-      {alerts.length > 0 ? (
+      {footerAlerts.length > 0 ? (
         <div className="mt-3 space-y-2 border-t border-[#3a3b3d] pt-3 text-[0.78rem] leading-5 text-[rgba(247,244,238,0.78)]">
-          {alerts.map((alert, index) => (
+          {footerAlerts.map((alert, index) => (
             <div
               key={`${snapshot?.journeyId ?? journey.id}-alert-${index}`}
               className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
@@ -520,9 +539,9 @@ export function JourneyBoard({
               {alert}
             </div>
           ))}
-          {alertCount > alerts.length ? (
+          {alertCount > footerAlerts.length ? (
             <div className="px-1 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-              +{alertCount - alerts.length} more alerts
+              +{alertCount - footerAlerts.length} more alerts
             </div>
           ) : null}
         </div>
