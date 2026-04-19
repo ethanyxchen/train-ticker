@@ -20,6 +20,7 @@ import {
 } from "@/lib/journeys/board-layout";
 import { getStationAbbreviation } from "@/lib/journeys/board-display";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
+import { parseInlineHtml } from "@/lib/journeys/inline-html";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
   JourneySnapshot,
@@ -321,6 +322,30 @@ function EmptyRow({
   );
 }
 
+function AlertBody({ value }: { value: string }) {
+  const segments = parseInlineHtml(value);
+
+  return (
+    <>
+      {segments.map((segment, index) =>
+        segment.type === "link" ? (
+          <a
+            key={`${segment.href}-${index}`}
+            href={segment.href}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-[rgba(247,244,238,0.45)] underline-offset-2 transition hover:text-[var(--board-header)]"
+          >
+            {segment.label}
+          </a>
+        ) : (
+          <span key={`text-${index}`}>{segment.value}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export function JourneyBoard({
   journey,
   snapshot,
@@ -478,7 +503,7 @@ export function JourneyBoard({
               key={`${snapshot?.journeyId ?? journey.id}-alert-${index}`}
               className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
             >
-              {alert}
+              <AlertBody value={alert} />
             </div>
           ))}
           {alertCount > footerAlerts.length ? (
