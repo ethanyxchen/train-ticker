@@ -225,7 +225,6 @@ function EmptyRow() {
       <SplitFlapText
         value=""
         length={BOARD_TICKERS.platform}
-        align="right"
         tone="neutral"
       />
       <SplitFlapText value="" length={BOARD_TICKERS.status} tone="neutral" />
@@ -293,7 +292,6 @@ export function JourneyBoard({
                   <SplitFlapText
                     value={row.platform}
                     length={BOARD_TICKERS.platform}
-                    align="right"
                     tone="neutral"
                   />
                   <SplitFlapText
