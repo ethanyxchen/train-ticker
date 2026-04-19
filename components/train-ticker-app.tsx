@@ -17,6 +17,7 @@ import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 
 const STORAGE_KEY = "train-ticker.saved-journeys.v1";
 const BOARD_GAP_REM = 0.75;
+const BOARD_PADDING_REM = 2;
 
 function toSnapshotMap(items: JourneySnapshot[]): Record<string, JourneySnapshot> {
   return Object.fromEntries(items.map((snapshot) => [snapshot.journeyId, snapshot]));
@@ -40,6 +41,7 @@ function hasSameBoardLayout(
 export function TrainTickerApp() {
   const [journeys, setJourneys] = useState<SavedJourney[]>([]);
   const [snapshots, setSnapshots] = useState<Record<string, JourneySnapshot>>({});
+  const [introCycles, setIntroCycles] = useState<Record<string, number>>({});
   const [hydrated, setHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +148,10 @@ export function TrainTickerApp() {
           window.getComputedStyle(document.documentElement).fontSize,
         ) || 16;
       const nextBoardLayout = resolveBoardLayout({
-        availableRem: nextBoardStackElement.clientWidth / rootFontSize,
+        availableRem: Math.max(
+          nextBoardStackElement.clientWidth / rootFontSize - BOARD_PADDING_REM,
+          0,
+        ),
         baseTickers: BASE_BOARD_TICKERS,
         gapRem: BOARD_GAP_REM,
       });
@@ -174,15 +179,17 @@ export function TrainTickerApp() {
       <div className="mx-auto w-full max-w-[1100px]">
         <JourneyForm
           onAddJourney={(journey) => {
-            setJourneys((currentJourneys) => {
-              const nextJourney = createSavedJourney(journey);
+            const nextJourney = createSavedJourney(journey);
 
-              if (currentJourneys.some((item) => item.id === nextJourney.id)) {
-                return currentJourneys;
-              }
+            if (journeys.some((item) => item.id === nextJourney.id)) {
+              return;
+            }
 
-              return [...currentJourneys, nextJourney];
-            });
+            setIntroCycles((currentIntroCycles) => ({
+              ...currentIntroCycles,
+              [nextJourney.id]: (currentIntroCycles[nextJourney.id] ?? 0) + 1,
+            }));
+            setJourneys((currentJourneys) => [...currentJourneys, nextJourney]);
           }}
         />
       </div>
@@ -201,10 +208,16 @@ export function TrainTickerApp() {
             snapshot={snapshots[journey.id]}
             layout={boardLayout}
             refreshing={refreshing}
+            introCycle={introCycles[journey.id]}
             onRemove={() => {
               setJourneys((currentJourneys) =>
                 currentJourneys.filter((item) => item.id !== journey.id),
               );
+              setIntroCycles((currentIntroCycles) => {
+                const nextIntroCycles = { ...currentIntroCycles };
+                delete nextIntroCycles[journey.id];
+                return nextIntroCycles;
+              });
               startTransition(() => {
                 setSnapshots((currentSnapshots) => {
                   const nextSnapshots = { ...currentSnapshots };

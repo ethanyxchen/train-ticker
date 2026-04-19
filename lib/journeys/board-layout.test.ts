@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getBoardWidthRem,
   resolveBoardLayout,
+  shouldUseCompactBoardLayout,
   type BoardTickers,
 } from "./board-layout.ts";
 
@@ -56,4 +57,26 @@ test("does not shrink the fixed columns when the viewport is narrower than the b
   assert.equal(layout.tickers.origin, BASE_TICKERS.origin);
   assert.equal(layout.tickers.destination, BASE_TICKERS.destination);
   assert.equal(layout.tickers.status, BASE_TICKERS.status);
+});
+
+test("switches to the compact board layout when the viewport is narrower than the board", () => {
+  assert.equal(
+    shouldUseCompactBoardLayout(
+      getBoardWidthRem(BASE_TICKERS, GAP_REM) - 0.1,
+      BASE_TICKERS,
+      GAP_REM,
+    ),
+    true,
+  );
+});
+
+test("keeps the full board layout when the viewport can fit the board", () => {
+  assert.equal(
+    shouldUseCompactBoardLayout(
+      getBoardWidthRem(BASE_TICKERS, GAP_REM),
+      BASE_TICKERS,
+      GAP_REM,
+    ),
+    false,
+  );
 });
