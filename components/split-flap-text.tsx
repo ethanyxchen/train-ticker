@@ -27,6 +27,7 @@ interface SplitFlapTextProps {
   align?: "left" | "right";
   tone?: JourneySnapshotTone;
   cycle?: number;
+  animateOnMount?: boolean;
   switchable?: boolean;
 }
 
@@ -74,6 +75,7 @@ export function SplitFlapText({
   align = "left",
   tone = "neutral",
   cycle,
+  animateOnMount = false,
   switchable = true,
 }: SplitFlapTextProps) {
   const sanitized = value.toUpperCase().replace(/\s+/g, " ").slice(0, length);
@@ -85,9 +87,10 @@ export function SplitFlapText({
     ),
     normalizeSplitFlapCharacter,
   ).join("");
+  const initialPadded = animateOnMount ? " ".repeat(length) : padded;
   const displayedPaddedRef = useRef(padded);
   const cycleRef = useRef(cycle);
-  const [startPadded, setStartPadded] = useState(padded);
+  const [startPadded, setStartPadded] = useState(initialPadded);
   const [switchState, setSwitchState] = useState(() => ({
     runs: Array.from({ length }, () => 0),
     forcedCycleRuns: Array.from({ length }, () => -1),
