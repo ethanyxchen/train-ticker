@@ -125,7 +125,7 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <div className="mx-auto w-full max-w-[1100px] space-y-3">
+      <div className="w-full space-y-3">
         {journeys.map((journey) => (
           <JourneyBoard
             key={journey.id}

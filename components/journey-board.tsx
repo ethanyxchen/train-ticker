@@ -336,7 +336,6 @@ export function JourneyBoard({
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${boardInsetRem}rem`,
   } satisfies CSSProperties;
-  const journeyLabel = `${formatStationLabel(journey.origin.label)} to ${formatStationLabel(journey.destination.label)}`;
   const stationLayoutSignature = rows
     .map(
       (row) =>
@@ -414,143 +413,130 @@ export function JourneyBoard({
   }, [stationLayoutRows, stationLayoutSignature]);
 
   return (
-    <section className="rounded-[1.7rem] border-[8px] border-[#bcb7af] bg-[linear-gradient(180deg,#d8d3cc,#a7a39d)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
-      <div className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-              Journey
-            </div>
-            <div className="truncate text-[0.84rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              {journeyLabel}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-              <span
+    <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
+      <div className="overflow-x-auto" ref={boardRef}>
+        <div className="w-full space-y-3" style={boardWidthStyle}>
+          {issue ? (
+            <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
+              <div
                 className={[
-                  "h-2 w-2 rounded-full",
-                  refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+                  "font-medium",
+                  issue.tone === "bad"
+                    ? "text-[var(--bad)]"
+                    : issue.tone === "good"
+                      ? "text-[var(--good)]"
+                      : "text-[var(--warn)]",
                 ].join(" ")}
-              />
-              <span>{refreshing ? "Updating" : "Live"}</span>
+              >
+                {issue.headline}
+              </div>
+              {issue.subheadline ? <div>{issue.subheadline}</div> : null}
             </div>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="h-8 rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
-            >
-              Remove
-            </button>
-          </div>
-        </div>
+          ) : null}
 
-        <div className="overflow-x-auto" ref={boardRef}>
-          <div className="w-full space-y-3" style={boardWidthStyle}>
-            {issue ? (
-              <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
-                <div
-                  className={[
-                    "font-medium",
-                    issue.tone === "bad"
-                      ? "text-[var(--bad)]"
-                      : issue.tone === "good"
-                        ? "text-[var(--good)]"
-                        : "text-[var(--warn)]",
-                  ].join(" ")}
-                >
-                  {issue.headline}
-                </div>
-                {issue.subheadline ? <div>{issue.subheadline}</div> : null}
-              </div>
-            ) : null}
-
-            <div
-              className="grid items-center gap-3 px-[0.15rem]"
-              style={boardGridStyle}
-            >
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Time
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Orig
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                {useStationAbbreviations ? "Dest" : "Destination"}
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Op
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Pl
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Status
-              </div>
+          <div
+            className="grid items-center gap-3 px-[0.15rem]"
+            style={boardGridStyle}
+          >
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Time
             </div>
-
-            <div className="space-y-2">
-              {rows.map((row) => (
-                <div
-                  key={row.id}
-                  className="grid items-center gap-3"
-                  style={boardGridStyle}
-                >
-                  <SplitFlapText
-                    value={row.time}
-                    length={boardTickers.time}
-                    align="right"
-                    tone="neutral"
-                    cycle={tickerCycle}
-                  />
-                  <SplitFlapText
-                    value={
-                      useStationAbbreviations
-                        ? row.originAbbreviated
-                        : row.originFull
-                    }
-                    length={boardTickers.origin}
-                    tone="neutral"
-                    cycle={tickerCycle}
-                  />
-                  <SplitFlapText
-                    value={
-                      useStationAbbreviations
-                        ? row.destinationAbbreviated
-                        : row.destinationFull
-                    }
-                    length={boardTickers.destination}
-                    tone="neutral"
-                    cycle={tickerCycle}
-                  />
-                  <SplitFlapText
-                    value={row.operator}
-                    length={boardTickers.operator}
-                    tone="neutral"
-                    cycle={tickerCycle}
-                  />
-                  <SplitFlapText
-                    value={row.platform}
-                    length={boardTickers.platform}
-                    tone="neutral"
-                    cycle={tickerCycle}
-                  />
-                  <SplitFlapText
-                    value={row.status}
-                    length={boardTickers.status}
-                    tone={row.statusTone}
-                    cycle={tickerCycle}
-                  />
-                </div>
-              ))}
-
-              {Array.from({ length: emptyRowCount }).map((_, index) => (
-                <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
-              ))}
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Orig
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              {useStationAbbreviations ? "Dest" : "Destination"}
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Op
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Pl
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Status
             </div>
           </div>
+
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div
+                key={row.id}
+                className="grid items-center gap-3"
+                style={boardGridStyle}
+              >
+                <SplitFlapText
+                  value={row.time}
+                  length={boardTickers.time}
+                  align="right"
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={
+                    useStationAbbreviations
+                      ? row.originAbbreviated
+                      : row.originFull
+                  }
+                  length={boardTickers.origin}
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={
+                    useStationAbbreviations
+                      ? row.destinationAbbreviated
+                      : row.destinationFull
+                  }
+                  length={boardTickers.destination}
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={row.operator}
+                  length={boardTickers.operator}
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={row.platform}
+                  length={boardTickers.platform}
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={row.status}
+                  length={boardTickers.status}
+                  tone={row.statusTone}
+                  cycle={tickerCycle}
+                />
+              </div>
+            ))}
+
+            {Array.from({ length: emptyRowCount }).map((_, index) => (
+              <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-end gap-3">
+        <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+            ].join(" ")}
+          />
+          <span>{refreshing ? "Updating" : "Live"}</span>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="h-8 rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
+        >
+          Remove journey
+        </button>
       </div>
     </section>
   );
