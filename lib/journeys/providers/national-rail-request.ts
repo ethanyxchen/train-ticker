@@ -46,6 +46,7 @@ export function buildRailRequestUrl(
   journey: RailRequestJourney,
   connection: RailRequestConnection,
   params?: {
+    filterDestination?: boolean;
     timeOffset?: number;
     timeWindow?: number;
     numRows?: number;
@@ -62,8 +63,10 @@ export function buildRailRequestUrl(
 
   const requestParams = new URL(requestUrl);
 
-  requestParams.searchParams.set("filterCrs", journey.destination.id.toUpperCase());
-  requestParams.searchParams.set("filterType", "to");
+  if (params?.filterDestination !== false) {
+    requestParams.searchParams.set("filterCrs", journey.destination.id.toUpperCase());
+    requestParams.searchParams.set("filterType", "to");
+  }
   requestParams.searchParams.set("numRows", String(params?.numRows ?? 20));
   requestParams.searchParams.set("timeOffset", String(params?.timeOffset ?? 0));
   requestParams.searchParams.set("timeWindow", String(params?.timeWindow ?? 180));

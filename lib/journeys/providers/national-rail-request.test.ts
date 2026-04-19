@@ -37,3 +37,33 @@ test("adds destination filtering to Darwin board requests", () => {
   assert.equal(requestUrl.searchParams.get("timeOffset"), "60");
   assert.equal(requestUrl.searchParams.get("timeWindow"), "120");
 });
+
+test("can build an unfiltered Darwin board request", () => {
+  const requestUrl = new URL(
+    buildRailRequestUrl(
+      {
+        id: "journey-1",
+        name: "London St Pancras International to Bedford",
+        provider: "national-rail",
+        origin: {
+          id: "STP",
+          label: "London St Pancras International",
+        },
+        destination: {
+          id: "BDM",
+          label: "Bedford",
+        },
+      },
+      {
+        proxyUrl: "https://example.com/GetDepBoardWithDetails/{crs}",
+      },
+      {
+        filterDestination: false,
+      },
+    ),
+  );
+
+  assert.equal(requestUrl.pathname, "/GetDepBoardWithDetails/STP");
+  assert.equal(requestUrl.searchParams.get("filterCrs"), null);
+  assert.equal(requestUrl.searchParams.get("filterType"), null);
+});

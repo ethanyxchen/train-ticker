@@ -76,6 +76,11 @@ type RailConnection = {
   consumerSecret?: string;
 };
 
+interface RailBoardLoadResult {
+  boards: DarwinStationBoard[];
+  usedDestinationFilter: boolean;
+}
+
 function normalizeEnvValue(value?: string): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -329,14 +334,31 @@ function getBoardServices(board: DarwinStationBoard): DarwinService[] {
   ];
 }
 
+function collectMatchingRailServices(
+  boards: DarwinStationBoard[],
+  journey: SavedJourney,
+): DarwinService[] {
+  return dedupeRailServices(
+    boards.flatMap((candidateBoard) =>
+      getBoardServices(candidateBoard).filter((service) =>
+        serviceMatchesJourney(service, journey),
+      ),
+    ),
+  );
+}
+
 async function loadRailBoards(
   journey: SavedJourney,
   connection: RailConnection,
+  params?: {
+    filterDestination?: boolean;
+  },
 ): Promise<DarwinStationBoard[]> {
   const boards: DarwinStationBoard[] = [];
 
   for (const timeOffset of [0, 60, 90]) {
     const requestUrl = buildRailRequestUrl(journey, connection, {
+      filterDestination: params?.filterDestination,
       timeOffset,
       timeWindow: 120,
       numRows: 20,
@@ -356,6 +378,29 @@ async function loadRailBoards(
   }
 
   return boards;
+}
+
+async function loadBestRailBoards(
+  journey: SavedJourney,
+  connection: RailConnection,
+): Promise<RailBoardLoadResult> {
+  const filteredBoards = await loadRailBoards(journey, connection);
+
+  if (collectMatchingRailServices(filteredBoards, journey).length > 0) {
+    return {
+      boards: filteredBoards,
+      usedDestinationFilter: true,
+    };
+  }
+
+  const unfilteredBoards = await loadRailBoards(journey, connection, {
+    filterDestination: false,
+  });
+
+  return {
+    boards: unfilteredBoards,
+    usedDestinationFilter: false,
+  };
 }
 
 function dedupeRailServices(services: DarwinService[]): DarwinService[] {
@@ -385,15 +430,13 @@ export const nationalRailProvider: JourneyProvider = {
       return buildUnconfiguredSnapshot(journey);
     }
 
-    const boards = await loadRailBoards(journey, connection);
+    const boardLoadResult = await loadBestRailBoards(journey, connection);
+    const boards = boardLoadResult.boards;
     const board = boards[0];
-    const departures = dedupeRailServices(
-      boards.flatMap((candidateBoard) =>
-        getBoardServices(candidateBoard).filter((service) =>
-          serviceMatchesJourney(service, journey),
-        ),
-      ),
-    ).slice(0, JOURNEY_BOARD_ROW_COUNT);
+    const departures = collectMatchingRailServices(boards, journey).slice(
+      0,
+      JOURNEY_BOARD_ROW_COUNT,
+    );
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
@@ -405,6 +448,12 @@ export const nationalRailProvider: JourneyProvider = {
       firstArrival.callingPoint?.cancelReason,
       firstArrival.callingPoint?.delayReason,
       ...(firstService?.adhocAlerts ?? []),
+      departures.length === 0 && boardLoadResult.usedDestinationFilter
+        ? "The live departure board only matched services terminating at the selected destination and returned no options in the current window."
+        : undefined,
+      departures.length === 0 && !boardLoadResult.usedDestinationFilter
+        ? "No services to the selected stop were visible in the current live departure-board window."
+        : undefined,
     ]);
 
     return {
@@ -415,7 +464,7 @@ export const nationalRailProvider: JourneyProvider = {
       subheadline:
         departures.length > 0
           ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
-          : `No matching services returned for ${journey.origin.label} to ${journey.destination.label}`,
+          : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
       refreshedAt: board.generatedAt ?? new Date().toISOString(),
       boardFields: buildRailFields(firstService, firstArrival),
       options: departures.map((service, index) => {

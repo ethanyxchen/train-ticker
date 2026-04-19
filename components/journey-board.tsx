@@ -34,6 +34,14 @@ interface BoardRow {
   statusTone: JourneySnapshotTone;
 }
 
+interface BoardIssue {
+  id: string;
+  route: string;
+  headline: string;
+  detail: string;
+  tone: JourneySnapshotTone;
+}
+
 const BOARD_TICKERS = {
   time: 5,
   origin: 3,
@@ -64,10 +72,6 @@ const BOARD_MIN_WIDTH_REM =
 const BOARD_MIN_WIDTH_STYLE = {
   minWidth: `${BOARD_MIN_WIDTH_REM}rem`,
 } satisfies CSSProperties;
-
-function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
-  return snapshot?.boardFields.find((field) => field.label === label);
-}
 
 function formatStationLabel(label: string) {
   const normalized = label
@@ -170,47 +174,12 @@ function getOptionStatus(
   };
 }
 
-function buildFallbackRow(
-  journey: SavedJourney,
-  snapshot: JourneySnapshot | undefined,
-): BoardRow {
-  const liveField = getBoardField(snapshot, "LIVE");
-  const statusField = getBoardField(snapshot, "STAT");
-  const platformField = getBoardField(snapshot, "PLAT");
-  const departureField = getBoardField(snapshot, "DEP");
-  const operatorField = getBoardField(snapshot, "OPER") ?? getBoardField(snapshot, "LINE");
-  const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
-
-  return {
-    id: journey.id,
-    time: normalizeBoardValue(
-      departureField?.value,
-      snapshot ? "--:--" : "LOAD",
-    ),
-    origin: getStationAbbreviation(journey.origin),
-    destination: formatStationLabel(journey.destination.label),
-    operator: getBoardOperatorLabel({
-      operator: operatorField?.value,
-    }),
-    platform: normalizeBoardValue(platformField?.value, "--"),
-    status: normalizeBoardValue(
-      liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
-      snapshot ? "WAIT" : "LOADING",
-    ),
-    statusTone:
-      liveField?.tone ??
-      statusField?.tone ??
-      fallbackStatus?.tone ??
-      (snapshot ? "neutral" : "warn"),
-  };
-}
-
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
 ): BoardRow[] {
   if (!snapshot?.options.length) {
-    return [buildFallbackRow(journey, snapshot)];
+    return [];
   }
 
   return snapshot.options
@@ -235,6 +204,23 @@ function toBoardRows(
         statusTone: optionStatus.tone,
       };
     });
+}
+
+function toBoardIssue(
+  journey: SavedJourney,
+  snapshot: JourneySnapshot | undefined,
+): BoardIssue | null {
+  if (!snapshot || snapshot.options.length > 0) {
+    return null;
+  }
+
+  return {
+    id: journey.id,
+    route: `${journey.origin.label} to ${journey.destination.label}`,
+    headline: snapshot.headline,
+    detail: snapshot.alerts[0] ?? snapshot.subheadline,
+    tone: snapshot.status === "error" ? "bad" : "warn",
+  };
 }
 
 function EmptyRow() {
@@ -291,6 +277,10 @@ export function JourneyBoard({
   const rows = journeys.flatMap((journey) =>
     toBoardRows(journey, snapshots[journey.id]),
   );
+  const issues = journeys.flatMap((journey) => {
+    const issue = toBoardIssue(journey, snapshots[journey.id]);
+    return issue ? [issue] : [];
+  });
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
 
   useEffect(() => {
@@ -305,6 +295,28 @@ export function JourneyBoard({
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
       <div className="overflow-x-auto">
         <div className="mx-auto w-fit space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
+          {issues.length ? (
+            <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
+              {issues.map((issue) => (
+                <div key={issue.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className={[
+                      "font-medium",
+                      issue.tone === "bad"
+                        ? "text-[var(--bad)]"
+                        : issue.tone === "good"
+                          ? "text-[var(--good)]"
+                          : "text-[var(--warn)]",
+                    ].join(" ")}
+                  >
+                    {issue.route}
+                  </span>
+                  <span>{issue.headline}</span>
+                  <span className="text-[rgba(247,244,238,0.48)]">{issue.detail}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div
             className="grid items-center gap-3 px-[0.15rem]"
             style={BOARD_GRID_STYLE}
