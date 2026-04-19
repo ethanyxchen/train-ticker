@@ -142,6 +142,7 @@ function buildFallbackRow(
   const liveField = getBoardField(snapshot, "LIVE");
   const statusField = getBoardField(snapshot, "STAT");
   const platformField = getBoardField(snapshot, "PLAT");
+  const operatorField = getBoardField(snapshot, "OPER");
   const departureField = getBoardField(snapshot, "DEP");
   const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
 
@@ -153,7 +154,7 @@ function buildFallbackRow(
     ),
     origin: getStationAbbreviation(journey.origin),
     destination: getStationAbbreviation(journey.destination),
-    operator: "--",
+    operator: normalizeBoardValue(operatorField?.value, "--"),
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
       liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
@@ -274,6 +275,8 @@ export function JourneyBoard({
   const boardTickers = layout.tickers;
   const boardGridStyle = getBoardGridStyle(boardTickers);
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
+  const alertCount = snapshot?.alerts.length ?? 0;
+  const alerts = snapshot?.alerts.slice(0, 3) ?? [];
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
@@ -386,6 +389,24 @@ export function JourneyBoard({
           </div>
         </div>
       </div>
+
+      {alerts.length > 0 ? (
+        <div className="mt-3 space-y-2 border-t border-[#3a3b3d] pt-3 text-[0.78rem] leading-5 text-[rgba(247,244,238,0.78)]">
+          {alerts.map((alert, index) => (
+            <div
+              key={`${snapshot?.journeyId ?? journey.id}-alert-${index}`}
+              className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
+            >
+              {alert}
+            </div>
+          ))}
+          {alertCount > alerts.length ? (
+            <div className="px-1 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+              +{alertCount - alerts.length} more alerts
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-3 flex items-center justify-end gap-3">
         <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
