@@ -163,17 +163,30 @@ function buildFallbackRow(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
 ): BoardRow {
+  if (!snapshot) {
+    return {
+      id: journey.id,
+      time: "",
+      origin: "",
+      destination: "",
+      operator: "",
+      platform: "",
+      status: "",
+      statusTone: "neutral",
+    };
+  }
+
   const liveField = getBoardField(snapshot, "LIVE");
   const statusField = getBoardField(snapshot, "STAT");
   const platformField = getBoardField(snapshot, "PLAT");
   const departureField = getBoardField(snapshot, "DEP");
-  const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
+  const fallbackStatus = getStatusFallback(snapshot);
 
   return {
     id: journey.id,
     time: normalizeBoardValue(
       departureField?.value,
-      snapshot ? "--:--" : "LOAD",
+      "--:--",
     ),
     origin: getStationAbbreviation(journey.origin),
     destination: getStationAbbreviation(journey.destination),
@@ -181,13 +194,13 @@ function buildFallbackRow(
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
       liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
-      snapshot ? "WAIT" : "LOADING",
+      "WAIT",
     ),
     statusTone:
       liveField?.tone ??
       statusField?.tone ??
       fallbackStatus?.tone ??
-      (snapshot ? "neutral" : "warn"),
+      "neutral",
   };
 }
 
