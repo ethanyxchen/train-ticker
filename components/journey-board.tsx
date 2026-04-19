@@ -38,7 +38,6 @@ interface BoardIssue {
   id: string;
   route: string;
   headline: string;
-  detail: string;
   tone: JourneySnapshotTone;
 }
 
@@ -218,7 +217,6 @@ function toBoardIssue(
     id: journey.id,
     route: `${journey.origin.label} to ${journey.destination.label}`,
     headline: snapshot.headline,
-    detail: snapshot.subheadline,
     tone: snapshot.status === "error" ? "bad" : "warn",
   };
 }
@@ -312,7 +310,6 @@ export function JourneyBoard({
                     {issue.route}
                   </span>
                   <span>{issue.headline}</span>
-                  <span className="text-[rgba(247,244,238,0.48)]">{issue.detail}</span>
                 </div>
               ))}
             </div>
