@@ -98,18 +98,20 @@ export function TrainTickerApp() {
   }, [hydrated, journeys, refreshJourneys]);
 
   return (
-    <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-3 px-3 py-5 sm:px-5 sm:py-6">
-      <JourneyForm
-        onAddJourney={(journey) => {
-          setJourneys((currentJourneys) => [
-            ...currentJourneys,
-            { ...journey, id: crypto.randomUUID() },
-          ]);
-        }}
-      />
+    <main className="flex w-full flex-1 flex-col gap-3 px-3 py-5 sm:px-5 sm:py-6">
+      <div className="mx-auto w-full max-w-[1100px]">
+        <JourneyForm
+          onAddJourney={(journey) => {
+            setJourneys((currentJourneys) => [
+              ...currentJourneys,
+              { ...journey, id: crypto.randomUUID() },
+            ]);
+          }}
+        />
+      </div>
 
       {error ? (
-        <div className="px-1 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)]">
+        <div className="mx-auto w-full max-w-[1100px] px-1 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)]">
           {error}
         </div>
       ) : null}

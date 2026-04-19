@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
   SplitFlapText,
@@ -41,36 +41,103 @@ interface BoardIssue {
   tone: JourneySnapshotTone;
 }
 
-const BOARD_TICKERS = {
+interface BoardTickers {
+  time: number;
+  origin: number;
+  destination: number;
+  operator: number;
+  platform: number;
+  status: number;
+}
+
+const BASE_BOARD_TICKERS: BoardTickers = {
   time: 5,
   origin: 3,
   destination: 22,
   operator: 3,
   platform: 2,
   status: 7,
-} as const;
+};
 const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
-const BOARD_COLUMNS = [
-  getSplitFlapWidth(BOARD_TICKERS.time),
-  getSplitFlapWidth(BOARD_TICKERS.origin),
-  getSplitFlapWidth(BOARD_TICKERS.destination),
-  getSplitFlapWidth(BOARD_TICKERS.operator),
-  getSplitFlapWidth(BOARD_TICKERS.platform),
-  getSplitFlapWidth(BOARD_TICKERS.status),
-].join(" ");
-const BOARD_GRID_STYLE = {
-  gridTemplateColumns: BOARD_COLUMNS,
-} satisfies CSSProperties;
+const EXTRA_TICKER_REM = getSplitFlapWidthRem(2) - getSplitFlapWidthRem(1);
 const BOARD_MIN_WIDTH_REM =
-  Object.values(BOARD_TICKERS).reduce<number>(
+  Object.values(BASE_BOARD_TICKERS).reduce<number>(
     (width, length) => width + getSplitFlapWidthRem(length),
     0,
   ) +
-  (Object.keys(BOARD_TICKERS).length - 1) * BOARD_GAP_REM;
+  (Object.keys(BASE_BOARD_TICKERS).length - 1) * BOARD_GAP_REM;
 const BOARD_MIN_WIDTH_STYLE = {
   minWidth: `${BOARD_MIN_WIDTH_REM}rem`,
 } satisfies CSSProperties;
+
+function getBoardGridStyle(tickers: BoardTickers) {
+  return {
+    gridTemplateColumns: [
+      getSplitFlapWidth(tickers.time),
+      getSplitFlapWidth(tickers.origin),
+      getSplitFlapWidth(tickers.destination),
+      getSplitFlapWidth(tickers.operator),
+      getSplitFlapWidth(tickers.platform),
+      getSplitFlapWidth(tickers.status),
+    ].join(" "),
+  } satisfies CSSProperties;
+}
+
+function getBoardWidthRem(tickers: BoardTickers) {
+  return (
+    Object.values(tickers).reduce<number>(
+      (width, length) => width + getSplitFlapWidthRem(length),
+      0,
+    ) +
+    (Object.keys(tickers).length - 1) * BOARD_GAP_REM
+  );
+}
+
+function hasSameTickerLengths(
+  left: BoardTickers,
+  right: BoardTickers,
+) {
+  return (
+    left.time === right.time &&
+    left.origin === right.origin &&
+    left.destination === right.destination &&
+    left.operator === right.operator &&
+    left.platform === right.platform &&
+    left.status === right.status
+  );
+}
+
+function resolveBoardLayout(containerWidthPx: number) {
+  if (typeof window === "undefined") {
+    return {
+      tickers: BASE_BOARD_TICKERS,
+      insetRem: 0,
+    };
+  }
+
+  const rootFontSize =
+    Number.parseFloat(
+      window.getComputedStyle(document.documentElement).fontSize,
+    ) || 16;
+  const availableRem = containerWidthPx / rootFontSize;
+  const extraCells = Math.max(
+    Math.floor((availableRem - BOARD_MIN_WIDTH_REM) / EXTRA_TICKER_REM),
+    0,
+  );
+  const originExtra = Math.ceil(extraCells / 2);
+  const statusExtra = Math.floor(extraCells / 2);
+  const tickers = {
+    ...BASE_BOARD_TICKERS,
+    origin: BASE_BOARD_TICKERS.origin + originExtra,
+    status: BASE_BOARD_TICKERS.status + statusExtra,
+  };
+
+  return {
+    tickers,
+    insetRem: Math.max((availableRem - getBoardWidthRem(tickers)) / 2, 0),
+  };
+}
 
 function formatStationLabel(label: string) {
   const normalized = label
@@ -221,43 +288,45 @@ function toBoardIssue(
   };
 }
 
-function EmptyRow() {
+function EmptyRow({ tickers }: { tickers: BoardTickers }) {
+  const boardGridStyle = getBoardGridStyle(tickers);
+
   return (
-    <div className="grid items-center gap-3" style={BOARD_GRID_STYLE}>
+    <div className="grid items-center gap-3" style={boardGridStyle}>
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.time}
+        length={tickers.time}
         align="right"
         tone="neutral"
         switchable={false}
       />
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.origin}
+        length={tickers.origin}
         tone="neutral"
         switchable={false}
       />
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.destination}
+        length={tickers.destination}
         tone="neutral"
         switchable={false}
       />
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.operator}
+        length={tickers.operator}
         tone="neutral"
         switchable={false}
       />
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.platform}
+        length={tickers.platform}
         tone="neutral"
         switchable={false}
       />
       <SplitFlapText
         value=""
-        length={BOARD_TICKERS.status}
+        length={tickers.status}
         tone="neutral"
         switchable={false}
       />
@@ -271,7 +340,10 @@ export function JourneyBoard({
   refreshing,
   onClear,
 }: JourneyBoardProps) {
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const [tickerCycle, setTickerCycle] = useState(0);
+  const [boardTickers, setBoardTickers] = useState(BASE_BOARD_TICKERS);
+  const [boardInsetRem, setBoardInsetRem] = useState(0);
   const rows = journeys.flatMap((journey) =>
     toBoardRows(journey, snapshots[journey.id]),
   );
@@ -280,6 +352,11 @@ export function JourneyBoard({
     return issue ? [issue] : [];
   });
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
+  const boardGridStyle = getBoardGridStyle(boardTickers);
+  const boardWidthStyle = {
+    ...BOARD_MIN_WIDTH_STYLE,
+    paddingInline: `${boardInsetRem}rem`,
+  } satisfies CSSProperties;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -289,10 +366,49 @@ export function JourneyBoard({
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    const boardElement = boardRef.current;
+
+    if (!boardElement) {
+      return;
+    }
+
+    function updateBoardLayout() {
+      const nextBoardElement = boardRef.current;
+
+      if (!nextBoardElement) {
+        return;
+      }
+
+      const nextLayout = resolveBoardLayout(nextBoardElement.clientWidth);
+
+      setBoardTickers((currentTickers) =>
+        hasSameTickerLengths(currentTickers, nextLayout.tickers)
+          ? currentTickers
+          : nextLayout.tickers,
+      );
+      setBoardInsetRem((currentInsetRem) =>
+        currentInsetRem === nextLayout.insetRem
+          ? currentInsetRem
+          : nextLayout.insetRem,
+      );
+    }
+
+    updateBoardLayout();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateBoardLayout();
+    });
+
+    resizeObserver.observe(boardElement);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-      <div className="overflow-x-auto">
-        <div className="mx-auto w-fit space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
+      <div className="overflow-x-auto" ref={boardRef}>
+        <div className="w-full space-y-3" style={boardWidthStyle}>
           {issues.length ? (
             <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
               {issues.map((issue) => (
@@ -316,7 +432,7 @@ export function JourneyBoard({
           ) : null}
           <div
             className="grid items-center gap-3 px-[0.15rem]"
-            style={BOARD_GRID_STYLE}
+            style={boardGridStyle}
           >
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Time
@@ -343,42 +459,42 @@ export function JourneyBoard({
               <div
                 key={row.id}
                 className="grid items-center gap-3"
-                style={BOARD_GRID_STYLE}
+                style={boardGridStyle}
               >
                 <SplitFlapText
                   value={row.time}
-                  length={BOARD_TICKERS.time}
+                  length={boardTickers.time}
                   align="right"
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.origin}
-                  length={BOARD_TICKERS.origin}
+                  length={boardTickers.origin}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.destination}
-                  length={BOARD_TICKERS.destination}
+                  length={boardTickers.destination}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.operator}
-                  length={BOARD_TICKERS.operator}
+                  length={boardTickers.operator}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.platform}
-                  length={BOARD_TICKERS.platform}
+                  length={boardTickers.platform}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.status}
-                  length={BOARD_TICKERS.status}
+                  length={boardTickers.status}
                   tone={row.statusTone}
                   cycle={tickerCycle}
                 />
@@ -386,7 +502,7 @@ export function JourneyBoard({
             ))}
 
             {Array.from({ length: emptyRowCount }).map((_, index) => (
-              <EmptyRow key={`empty-row-${index}`} />
+              <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
             ))}
           </div>
         </div>
