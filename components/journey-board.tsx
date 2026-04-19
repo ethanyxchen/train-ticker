@@ -35,7 +35,7 @@ interface BoardRow {
 const BOARD_TICKERS = {
   time: 5,
   origin: 3,
-  destination: 27,
+  destination: 25,
   platform: 2,
   status: 7,
 } as const;
@@ -286,7 +286,7 @@ export function JourneyBoard({
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
       <div className="overflow-x-auto">
-        <div className="space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
+        <div className="mx-auto w-fit space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
           <div
             className="grid items-center gap-3 px-[0.15rem]"
             style={BOARD_GRID_STYLE}
