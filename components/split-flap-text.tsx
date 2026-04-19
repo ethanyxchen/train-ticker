@@ -12,7 +12,7 @@ interface SplitFlapTextProps {
 export const SPLIT_FLAP_CELL = {
   widthRem: 1.376,
   heightRem: 2.2,
-  gapRem: 0.16,
+  gapRem: 0.08,
   fontSizeRem: 0.736,
   radiusRem: 0.224,
   paddingInlineRem: 0.144,
