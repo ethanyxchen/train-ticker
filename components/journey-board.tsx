@@ -5,8 +5,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   SplitFlapText,
   getSplitFlapWidth,
-  getSplitFlapWidthRem,
 } from "@/components/split-flap-text";
+import {
+  getBoardWidthRem,
+  resolveBoardStationLayout,
+  type BoardTickers,
+} from "@/lib/journeys/board-layout";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
@@ -26,8 +30,10 @@ interface JourneyBoardProps {
 interface BoardRow {
   id: string;
   time: string;
-  origin: string;
-  destination: string;
+  originFull: string;
+  originAbbreviated: string;
+  destinationFull: string;
+  destinationAbbreviated: string;
   operator: string;
   platform: string;
   status: string;
@@ -41,15 +47,6 @@ interface BoardIssue {
   tone: JourneySnapshotTone;
 }
 
-interface BoardTickers {
-  time: number;
-  origin: number;
-  destination: number;
-  operator: number;
-  platform: number;
-  status: number;
-}
-
 const BASE_BOARD_TICKERS: BoardTickers = {
   time: 5,
   origin: 3,
@@ -60,16 +57,6 @@ const BASE_BOARD_TICKERS: BoardTickers = {
 };
 const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
-const EXTRA_TICKER_REM = getSplitFlapWidthRem(2) - getSplitFlapWidthRem(1);
-const BOARD_MIN_WIDTH_REM =
-  Object.values(BASE_BOARD_TICKERS).reduce<number>(
-    (width, length) => width + getSplitFlapWidthRem(length),
-    0,
-  ) +
-  (Object.keys(BASE_BOARD_TICKERS).length - 1) * BOARD_GAP_REM;
-const BOARD_MIN_WIDTH_STYLE = {
-  minWidth: `${BOARD_MIN_WIDTH_REM}rem`,
-} satisfies CSSProperties;
 
 function getBoardGridStyle(tickers: BoardTickers) {
   return {
@@ -84,16 +71,6 @@ function getBoardGridStyle(tickers: BoardTickers) {
   } satisfies CSSProperties;
 }
 
-function getBoardWidthRem(tickers: BoardTickers) {
-  return (
-    Object.values(tickers).reduce<number>(
-      (width, length) => width + getSplitFlapWidthRem(length),
-      0,
-    ) +
-    (Object.keys(tickers).length - 1) * BOARD_GAP_REM
-  );
-}
-
 function hasSameTickerLengths(
   left: BoardTickers,
   right: BoardTickers,
@@ -106,37 +83,6 @@ function hasSameTickerLengths(
     left.platform === right.platform &&
     left.status === right.status
   );
-}
-
-function resolveBoardLayout(containerWidthPx: number) {
-  if (typeof window === "undefined") {
-    return {
-      tickers: BASE_BOARD_TICKERS,
-      insetRem: 0,
-    };
-  }
-
-  const rootFontSize =
-    Number.parseFloat(
-      window.getComputedStyle(document.documentElement).fontSize,
-    ) || 16;
-  const availableRem = containerWidthPx / rootFontSize;
-  const extraCells = Math.max(
-    Math.floor((availableRem - BOARD_MIN_WIDTH_REM) / EXTRA_TICKER_REM),
-    0,
-  );
-  const originExtra = Math.ceil(extraCells / 2);
-  const statusExtra = Math.floor(extraCells / 2);
-  const tickers = {
-    ...BASE_BOARD_TICKERS,
-    origin: BASE_BOARD_TICKERS.origin + originExtra,
-    status: BASE_BOARD_TICKERS.status + statusExtra,
-  };
-
-  return {
-    tickers,
-    insetRem: Math.max((availableRem - getBoardWidthRem(tickers)) / 2, 0),
-  };
 }
 
 function formatStationLabel(label: string) {
@@ -259,8 +205,10 @@ function toBoardRows(
           option.scheduledDeparture ?? option.expectedDeparture,
           "--:--",
         ),
-        origin: getStationAbbreviation(journey.origin),
-        destination: formatStationLabel(journey.destination.label),
+        originFull: formatStationLabel(journey.origin.label),
+        originAbbreviated: getStationAbbreviation(journey.origin),
+        destinationFull: formatStationLabel(journey.destination.label),
+        destinationAbbreviated: getStationAbbreviation(journey.destination),
         operator: getBoardOperatorLabel({
           operator: option.operator,
           operatorCode: option.operatorCode,
@@ -344,6 +292,7 @@ export function JourneyBoard({
   const [tickerCycle, setTickerCycle] = useState(0);
   const [boardTickers, setBoardTickers] = useState(BASE_BOARD_TICKERS);
   const [boardInsetRem, setBoardInsetRem] = useState(0);
+  const [useStationAbbreviations, setUseStationAbbreviations] = useState(false);
   const rows = journeys.flatMap((journey) =>
     toBoardRows(journey, snapshots[journey.id]),
   );
@@ -353,10 +302,25 @@ export function JourneyBoard({
   });
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardGridStyle = getBoardGridStyle(boardTickers);
+  const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {
-    ...BOARD_MIN_WIDTH_STYLE,
+    minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${boardInsetRem}rem`,
   } satisfies CSSProperties;
+  const stationLayoutSignature = rows
+    .map(
+      (row) =>
+        `${row.originFull}:${row.originAbbreviated}:${row.destinationFull}:${row.destinationAbbreviated}`,
+    )
+    .join("|");
+  const stationLayoutRows = JSON.stringify(
+    rows.map((row) => ({
+      originFull: row.originFull,
+      originAbbreviated: row.originAbbreviated,
+      destinationFull: row.destinationFull,
+      destinationAbbreviated: row.destinationAbbreviated,
+    })),
+  );
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -380,7 +344,16 @@ export function JourneyBoard({
         return;
       }
 
-      const nextLayout = resolveBoardLayout(nextBoardElement.clientWidth);
+      const rootFontSize =
+        Number.parseFloat(
+          window.getComputedStyle(document.documentElement).fontSize,
+        ) || 16;
+      const nextLayout = resolveBoardStationLayout({
+        availableRem: nextBoardElement.clientWidth / rootFontSize,
+        baseTickers: BASE_BOARD_TICKERS,
+        rows: JSON.parse(stationLayoutRows),
+        gapRem: BOARD_GAP_REM,
+      });
 
       setBoardTickers((currentTickers) =>
         hasSameTickerLengths(currentTickers, nextLayout.tickers)
@@ -391,6 +364,11 @@ export function JourneyBoard({
         currentInsetRem === nextLayout.insetRem
           ? currentInsetRem
           : nextLayout.insetRem,
+      );
+      setUseStationAbbreviations((currentValue) =>
+        currentValue === nextLayout.useStationAbbreviations
+          ? currentValue
+          : nextLayout.useStationAbbreviations,
       );
     }
 
@@ -403,7 +381,7 @@ export function JourneyBoard({
     resizeObserver.observe(boardElement);
 
     return () => resizeObserver.disconnect();
-  }, []);
+  }, [stationLayoutRows, stationLayoutSignature]);
 
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
@@ -441,7 +419,7 @@ export function JourneyBoard({
               Orig
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Destination
+              {useStationAbbreviations ? "Dest" : "Destination"}
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Op
@@ -469,13 +447,21 @@ export function JourneyBoard({
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
-                  value={row.origin}
+                  value={
+                    useStationAbbreviations
+                      ? row.originAbbreviated
+                      : row.originFull
+                  }
                   length={boardTickers.origin}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
-                  value={row.destination}
+                  value={
+                    useStationAbbreviations
+                      ? row.destinationAbbreviated
+                      : row.destinationFull
+                  }
                   length={boardTickers.destination}
                   tone="neutral"
                   cycle={tickerCycle}

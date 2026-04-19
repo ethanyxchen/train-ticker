@@ -1,19 +1,19 @@
-import { searchNationalRailStations } from "../../data/national-rail-stations.ts";
+import { searchNationalRailStations } from "../../data/national-rail-stations";
 import {
   dedupeText,
   delayMinutes,
   fetchJson,
   formatBoardValue,
-} from "../provider-utils.ts";
-import { JOURNEY_BOARD_ROW_COUNT } from "../constants.ts";
-import type { JourneyProvider } from "./base.ts";
-import { buildRailRequestUrl } from "./national-rail-request.ts";
+} from "../provider-utils";
+import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
+import type { JourneyProvider } from "./base";
+import { buildRailRequestUrl } from "./national-rail-request";
 import type {
   BoardField,
   JourneySnapshot,
   JourneySnapshotStatus,
   SavedJourney,
-} from "../types.ts";
+} from "../types";
 
 interface DarwinMessage {
   Value?: string;

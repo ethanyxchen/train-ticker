@@ -8,7 +8,14 @@ import {
   type CSSProperties,
 } from "react";
 
+import {
+  SPLIT_FLAP_CELL,
+  getSplitFlapWidth,
+  getSplitFlapWidthRem,
+} from "@/lib/journeys/split-flap-metrics";
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
+
+export { SPLIT_FLAP_CELL, getSplitFlapWidth, getSplitFlapWidthRem };
 
 interface SplitFlapTextProps {
   value: string;
@@ -18,15 +25,6 @@ interface SplitFlapTextProps {
   cycle?: number;
   switchable?: boolean;
 }
-
-export const SPLIT_FLAP_CELL = {
-  widthRem: 1.376,
-  heightRem: 2.2,
-  gapRem: 0.08,
-  fontSizeRem: 0.736,
-  radiusRem: 0.224,
-  paddingInlineRem: 0.144,
-} as const;
 
 const splitFlapStyle = {
   gap: `${SPLIT_FLAP_CELL.gapRem}rem`,
@@ -52,17 +50,6 @@ const toneClasses: Record<JourneySnapshotTone, string> = {
   warn: "text-[var(--warn)]",
   bad: "text-[var(--bad)]",
 };
-
-export function getSplitFlapWidthRem(length: number) {
-  return (
-    length * SPLIT_FLAP_CELL.widthRem +
-    Math.max(length - 1, 0) * SPLIT_FLAP_CELL.gapRem
-  );
-}
-
-export function getSplitFlapWidth(length: number) {
-  return `${getSplitFlapWidthRem(length)}rem`;
-}
 
 export function SplitFlapText({
   value,
