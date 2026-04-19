@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
   SplitFlapText,
@@ -25,6 +25,7 @@ interface JourneyBoardProps {
   snapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
   refreshing: boolean;
+  introCycle?: number;
   onRemove: () => void;
 }
 
@@ -265,9 +266,11 @@ export function JourneyBoard({
   snapshot,
   layout,
   refreshing,
+  introCycle,
   onRemove,
 }: JourneyBoardProps) {
   const [tickerCycle, setTickerCycle] = useState(0);
+  const handledIntroCycleRef = useRef<number | undefined>(undefined);
   const rows = toBoardRows(journey, snapshot);
   const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
@@ -286,6 +289,20 @@ export function JourneyBoard({
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (introCycle === undefined || handledIntroCycleRef.current === introCycle) {
+      return;
+    }
+
+    handledIntroCycleRef.current = introCycle;
+
+    const frameId = window.requestAnimationFrame(() => {
+      setTickerCycle((currentTickerCycle) => currentTickerCycle + 1);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [introCycle]);
 
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
