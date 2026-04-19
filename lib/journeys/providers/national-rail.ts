@@ -1,19 +1,19 @@
-import { searchNationalRailStations } from "@/lib/data/national-rail-stations";
+import { searchNationalRailStations } from "../../data/national-rail-stations.ts";
 import {
   dedupeText,
   delayMinutes,
   fetchJson,
   formatBoardValue,
-} from "@/lib/journeys/provider-utils";
-import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
-import type { JourneyProvider } from "@/lib/journeys/providers/base";
-import { buildRailRequestUrl } from "@/lib/journeys/providers/national-rail-request";
+} from "../provider-utils.ts";
+import { JOURNEY_BOARD_ROW_COUNT } from "../constants.ts";
+import type { JourneyProvider } from "./base.ts";
+import { buildRailRequestUrl } from "./national-rail-request.ts";
 import type {
   BoardField,
   JourneySnapshot,
   JourneySnapshotStatus,
   SavedJourney,
-} from "@/lib/journeys/types";
+} from "../types.ts";
 
 interface DarwinMessage {
   Value?: string;
@@ -77,8 +77,8 @@ type RailConnection = {
 };
 
 interface RailBoardLoadResult {
-  boards: DarwinStationBoard[];
-  usedDestinationFilter: boolean;
+  filteredBoards: DarwinStationBoard[];
+  unfilteredBoards: DarwinStationBoard[];
 }
 
 function normalizeEnvValue(value?: string): string | null {
@@ -334,16 +334,76 @@ function getBoardServices(board: DarwinStationBoard): DarwinService[] {
   ];
 }
 
+function parseRailClockMinutes(value?: string): number | null {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [hours, minutes] = value.split(":").map(Number);
+
+  return hours * 60 + minutes;
+}
+
+function normalizeRailClockMinutes(
+  value: number | null,
+  anchor: number | null,
+): number | null {
+  if (value === null || anchor === null) {
+    return value;
+  }
+
+  return value < anchor - 12 * 60 ? value + 24 * 60 : value;
+}
+
+function compareRailClockMinutes(left: number | null, right: number | null): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+
+  if (left === null) {
+    return 1;
+  }
+
+  if (right === null) {
+    return -1;
+  }
+
+  return left - right;
+}
+
 function collectMatchingRailServices(
-  boards: DarwinStationBoard[],
+  boardGroups: DarwinStationBoard[][],
   journey: SavedJourney,
 ): DarwinService[] {
+  const candidates = boardGroups.flatMap((boards, sourceIndex) =>
+    boards.flatMap((board, batchIndex) => {
+      const anchor = parseRailClockMinutes(getBoardServices(board)[0]?.std);
+
+      return getBoardServices(board)
+        .filter((service) => serviceMatchesJourney(service, journey))
+        .map((service, serviceIndex) => ({
+          service,
+          batchIndex,
+          sourceIndex,
+          serviceIndex,
+          departureMinutes: normalizeRailClockMinutes(
+            parseRailClockMinutes(service.std),
+            anchor,
+          ),
+        }));
+    }),
+  );
+
   return dedupeRailServices(
-    boards.flatMap((candidateBoard) =>
-      getBoardServices(candidateBoard).filter((service) =>
-        serviceMatchesJourney(service, journey),
-      ),
-    ),
+    candidates
+      .sort(
+        (left, right) =>
+          left.batchIndex - right.batchIndex ||
+          compareRailClockMinutes(left.departureMinutes, right.departureMinutes) ||
+          left.sourceIndex - right.sourceIndex ||
+          left.serviceIndex - right.serviceIndex,
+      )
+      .map((candidate) => candidate.service),
   );
 }
 
@@ -384,22 +444,16 @@ async function loadBestRailBoards(
   journey: SavedJourney,
   connection: RailConnection,
 ): Promise<RailBoardLoadResult> {
-  const filteredBoards = await loadRailBoards(journey, connection);
-
-  if (collectMatchingRailServices(filteredBoards, journey).length > 0) {
-    return {
-      boards: filteredBoards,
-      usedDestinationFilter: true,
-    };
-  }
-
-  const unfilteredBoards = await loadRailBoards(journey, connection, {
-    filterDestination: false,
-  });
+  const [filteredBoards, unfilteredBoards] = await Promise.all([
+    loadRailBoards(journey, connection),
+    loadRailBoards(journey, connection, {
+      filterDestination: false,
+    }),
+  ]);
 
   return {
-    boards: unfilteredBoards,
-    usedDestinationFilter: false,
+    filteredBoards,
+    unfilteredBoards,
   };
 }
 
@@ -431,9 +485,15 @@ export const nationalRailProvider: JourneyProvider = {
     }
 
     const boardLoadResult = await loadBestRailBoards(journey, connection);
-    const boards = boardLoadResult.boards;
+    const boards = [
+      ...boardLoadResult.filteredBoards,
+      ...boardLoadResult.unfilteredBoards,
+    ];
     const board = boards[0];
-    const departures = collectMatchingRailServices(boards, journey).slice(
+    const departures = collectMatchingRailServices(
+      [boardLoadResult.unfilteredBoards, boardLoadResult.filteredBoards],
+      journey,
+    ).slice(
       0,
       JOURNEY_BOARD_ROW_COUNT,
     );
@@ -442,16 +502,15 @@ export const nationalRailProvider: JourneyProvider = {
     const status = pickRailStatus(firstService, firstArrival);
 
     const alerts = dedupeText([
-      ...((board.nrccMessages ?? []).map((message) => message.Value)),
+      ...boards.flatMap((currentBoard) =>
+        (currentBoard.nrccMessages ?? []).map((message) => message.Value),
+      ),
       firstService?.cancelReason,
       firstService?.delayReason,
       firstArrival.callingPoint?.cancelReason,
       firstArrival.callingPoint?.delayReason,
       ...(firstService?.adhocAlerts ?? []),
-      departures.length === 0 && boardLoadResult.usedDestinationFilter
-        ? "The live departure board only matched services terminating at the selected destination and returned no options in the current window."
-        : undefined,
-      departures.length === 0 && !boardLoadResult.usedDestinationFilter
+      departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
     ]);
