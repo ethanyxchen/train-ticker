@@ -17,6 +17,7 @@ import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 
 const STORAGE_KEY = "train-ticker.saved-journeys.v1";
 const BOARD_GAP_REM = 0.75;
+const BOARD_PADDING_REM = 2;
 
 function toSnapshotMap(items: JourneySnapshot[]): Record<string, JourneySnapshot> {
   return Object.fromEntries(items.map((snapshot) => [snapshot.journeyId, snapshot]));
@@ -146,7 +147,10 @@ export function TrainTickerApp() {
           window.getComputedStyle(document.documentElement).fontSize,
         ) || 16;
       const nextBoardLayout = resolveBoardLayout({
-        availableRem: nextBoardStackElement.clientWidth / rootFontSize,
+        availableRem: Math.max(
+          nextBoardStackElement.clientWidth / rootFontSize - BOARD_PADDING_REM,
+          0,
+        ),
         baseTickers: BASE_BOARD_TICKERS,
         gapRem: BOARD_GAP_REM,
       });

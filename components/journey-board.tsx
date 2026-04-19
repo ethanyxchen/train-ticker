@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import {
   SplitFlapText,
@@ -8,6 +14,7 @@ import {
 } from "@/components/split-flap-text";
 import {
   getBoardWidthRem,
+  shouldUseCompactBoardLayout,
   type ResolvedBoardLayout,
   type BoardTickers,
 } from "@/lib/journeys/board-layout";
@@ -46,19 +53,35 @@ interface BoardIssue {
   tone: JourneySnapshotTone;
 }
 
+type BoardColumn = {
+  key: keyof BoardTickers;
+  label: string;
+  align?: "left" | "right";
+};
+
 const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
+const BOARD_COLUMNS: readonly BoardColumn[] = [
+  { key: "time", label: "Time", align: "right" },
+  { key: "origin", label: "Orig" },
+  { key: "destination", label: "Dest" },
+  { key: "operator", label: "Op" },
+  { key: "platform", label: "Pl" },
+  { key: "status", label: "Status" },
+];
+const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardColumn[]] = [
+  BOARD_COLUMNS.slice(0, 3),
+  BOARD_COLUMNS.slice(3),
+];
 
-function getBoardGridStyle(tickers: BoardTickers) {
+function getBoardGridStyle(
+  tickers: BoardTickers,
+  columns: readonly BoardColumn[],
+) {
   return {
-    gridTemplateColumns: [
-      getSplitFlapWidth(tickers.time),
-      getSplitFlapWidth(tickers.origin),
-      getSplitFlapWidth(tickers.destination),
-      getSplitFlapWidth(tickers.operator),
-      getSplitFlapWidth(tickers.platform),
-      getSplitFlapWidth(tickers.status),
-    ].join(" "),
+    gridTemplateColumns: columns
+      .map((column) => getSplitFlapWidth(tickers[column.key]))
+      .join(" "),
   } satisfies CSSProperties;
 }
 
@@ -214,49 +237,91 @@ function toBoardIssue(
   };
 }
 
-function EmptyRow({ tickers }: { tickers: BoardTickers }) {
-  const boardGridStyle = getBoardGridStyle(tickers);
+function BoardHeader({
+  tickers,
+  columns,
+}: {
+  tickers: BoardTickers;
+  columns: readonly BoardColumn[];
+}) {
+  const boardGridStyle = getBoardGridStyle(tickers, columns);
+
+  return (
+    <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
+      {columns.map((column) => (
+        <div
+          key={column.key}
+          className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]"
+        >
+          {column.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BoardGridRow({
+  tickers,
+  columns,
+  row,
+  cycle,
+  switchable = true,
+}: {
+  tickers: BoardTickers;
+  columns: readonly BoardColumn[];
+  row?: BoardRow;
+  cycle?: number;
+  switchable?: boolean;
+}) {
+  const boardGridStyle = getBoardGridStyle(tickers, columns);
 
   return (
     <div className="grid items-center gap-3" style={boardGridStyle}>
-      <SplitFlapText
-        value=""
-        length={tickers.time}
-        align="right"
-        tone="neutral"
-        switchable={false}
-      />
-      <SplitFlapText
-        value=""
-        length={tickers.origin}
-        tone="neutral"
-        switchable={false}
-      />
-      <SplitFlapText
-        value=""
-        length={tickers.destination}
-        tone="neutral"
-        switchable={false}
-      />
-      <SplitFlapText
-        value=""
-        length={tickers.operator}
-        tone="neutral"
-        switchable={false}
-      />
-      <SplitFlapText
-        value=""
-        length={tickers.platform}
-        tone="neutral"
-        switchable={false}
-      />
-      <SplitFlapText
-        value=""
-        length={tickers.status}
-        tone="neutral"
-        switchable={false}
-      />
+      {columns.map((column) => (
+        <SplitFlapText
+          key={column.key}
+          value={row ? row[column.key] : ""}
+          length={tickers[column.key]}
+          align={column.align}
+          tone={column.key === "status" && row ? row.statusTone : "neutral"}
+          cycle={row ? cycle : undefined}
+          switchable={switchable}
+        />
+      ))}
     </div>
+  );
+}
+
+function EmptyRow({
+  tickers,
+  compact,
+}: {
+  tickers: BoardTickers;
+  compact: boolean;
+}) {
+  if (compact) {
+    return (
+      <div className="space-y-2">
+        <BoardGridRow
+          tickers={tickers}
+          columns={COMPACT_BOARD_COLUMNS[0]}
+          switchable={false}
+        />
+        <BoardGridRow
+          tickers={tickers}
+          columns={COMPACT_BOARD_COLUMNS[1]}
+          switchable={false}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <BoardGridRow
+      tickers={tickers}
+      columns={BOARD_COLUMNS}
+      switchable={false}
+    />
   );
 }
 
@@ -268,11 +333,12 @@ export function JourneyBoard({
   onRemove,
 }: JourneyBoardProps) {
   const [tickerCycle, setTickerCycle] = useState(0);
+  const [compact, setCompact] = useState(false);
+  const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = toBoardRows(journey, snapshot);
   const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardTickers = layout.tickers;
-  const boardGridStyle = getBoardGridStyle(boardTickers);
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
@@ -287,10 +353,53 @@ export function JourneyBoard({
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useLayoutEffect(() => {
+    const boardViewportElement = boardViewportRef.current;
+
+    if (!boardViewportElement) {
+      return;
+    }
+
+    function updateCompactLayout() {
+      const nextBoardViewportElement = boardViewportRef.current;
+
+      if (!nextBoardViewportElement) {
+        return;
+      }
+
+      const rootFontSize =
+        Number.parseFloat(
+          window.getComputedStyle(document.documentElement).fontSize,
+        ) || 16;
+      const nextCompact = shouldUseCompactBoardLayout(
+        nextBoardViewportElement.clientWidth / rootFontSize,
+        boardTickers,
+        BOARD_GAP_REM,
+      );
+
+      setCompact((currentCompact) =>
+        currentCompact === nextCompact ? currentCompact : nextCompact,
+      );
+    }
+
+    updateCompactLayout();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateCompactLayout();
+    });
+
+    resizeObserver.observe(boardViewportElement);
+
+    return () => resizeObserver.disconnect();
+  }, [boardTickers]);
+
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-      <div className="overflow-x-auto">
-        <div className="w-full space-y-3" style={boardWidthStyle}>
+      <div className="overflow-hidden" ref={boardViewportRef}>
+        <div
+          className="w-full space-y-3"
+          style={compact ? undefined : boardWidthStyle}
+        >
           {issue ? (
             <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
               <div
@@ -309,81 +418,71 @@ export function JourneyBoard({
             </div>
           ) : null}
 
-          <div
-            className="grid items-center gap-3 px-[0.15rem]"
-            style={boardGridStyle}
-          >
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Time
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Orig
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Dest
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Op
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Pl
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Status
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div
-                key={row.id}
-                className="grid items-center gap-3"
-                style={boardGridStyle}
-              >
-                <SplitFlapText
-                  value={row.time}
-                  length={boardTickers.time}
-                  align="right"
-                  tone="neutral"
-                  cycle={tickerCycle}
+          {compact ? (
+            <>
+              <div className="space-y-2">
+                <BoardHeader
+                  tickers={boardTickers}
+                  columns={COMPACT_BOARD_COLUMNS[0]}
                 />
-                <SplitFlapText
-                  value={row.origin}
-                  length={boardTickers.origin}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.destination}
-                  length={boardTickers.destination}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.operator}
-                  length={boardTickers.operator}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.platform}
-                  length={boardTickers.platform}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.status}
-                  length={boardTickers.status}
-                  tone={row.statusTone}
-                  cycle={tickerCycle}
+                <BoardHeader
+                  tickers={boardTickers}
+                  columns={COMPACT_BOARD_COLUMNS[1]}
                 />
               </div>
-            ))}
 
-            {Array.from({ length: emptyRowCount }).map((_, index) => (
-              <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
-            ))}
-          </div>
+              <div className="space-y-3">
+                {rows.map((row) => (
+                  <div key={row.id} className="space-y-2">
+                    <BoardGridRow
+                      tickers={boardTickers}
+                      columns={COMPACT_BOARD_COLUMNS[0]}
+                      row={row}
+                      cycle={tickerCycle}
+                    />
+                    <BoardGridRow
+                      tickers={boardTickers}
+                      columns={COMPACT_BOARD_COLUMNS[1]}
+                      row={row}
+                      cycle={tickerCycle}
+                    />
+                  </div>
+                ))}
+
+                {Array.from({ length: emptyRowCount }).map((_, index) => (
+                  <EmptyRow
+                    key={`empty-row-${index}`}
+                    tickers={boardTickers}
+                    compact
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <BoardHeader tickers={boardTickers} columns={BOARD_COLUMNS} />
+
+              <div className="space-y-2">
+                {rows.map((row) => (
+                  <BoardGridRow
+                    key={row.id}
+                    tickers={boardTickers}
+                    columns={BOARD_COLUMNS}
+                    row={row}
+                    cycle={tickerCycle}
+                  />
+                ))}
+
+                {Array.from({ length: emptyRowCount }).map((_, index) => (
+                  <EmptyRow
+                    key={`empty-row-${index}`}
+                    tickers={boardTickers}
+                    compact={false}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

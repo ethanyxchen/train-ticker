@@ -16,6 +16,7 @@
   --good: #d5e381;
   --warn: #f2d166;
   --bad: #ec8a6d;
+  --page-background: linear-gradient(180deg, #efebe4 0%, #d7d2ca 100%);
 }
 
 @theme inline {
@@ -30,14 +31,18 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+  background: var(--page-background);
+  overflow-x: clip;
 }
 
 body {
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-display), sans-serif;
-  background-image: linear-gradient(180deg, #efebe4 0%, #d7d2ca 100%);
+  background-image: var(--page-background);
+  overflow-x: clip;
 }
 
 a,
