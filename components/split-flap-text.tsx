@@ -80,11 +80,20 @@ export function SplitFlapText({
   const paddedRef = useRef(padded);
   const cycleRef = useRef(cycle);
   const [previousPadded, setPreviousPadded] = useState(padded);
-  const [switchCount, setSwitchCount] = useState(0);
+  const [switchCounts, setSwitchCounts] = useState(() =>
+    Array.from({ length }, () => 0),
+  );
 
-  function switchTicker() {
+  function switchTicker(index: number) {
     setPreviousPadded(paddedRef.current);
-    setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
+    setSwitchCounts((currentSwitchCounts) =>
+      Array.from(
+        { length },
+        (_, currentIndex) =>
+          (currentSwitchCounts[currentIndex] ?? 0) +
+          (currentIndex === index ? 1 : 0),
+      ),
+    );
   }
 
   useLayoutEffect(() => {
@@ -94,8 +103,13 @@ export function SplitFlapText({
 
     setPreviousPadded(paddedRef.current);
     paddedRef.current = padded;
-    setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
-  }, [padded]);
+    setSwitchCounts((currentSwitchCounts) =>
+      Array.from(
+        { length },
+        (_, index) => (currentSwitchCounts[index] ?? 0) + 1,
+      ),
+    );
+  }, [length, padded]);
 
   useEffect(() => {
     if (cycleRef.current === cycle) {
@@ -106,9 +120,14 @@ export function SplitFlapText({
 
     if (switchable) {
       setPreviousPadded(paddedRef.current);
-      setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
+      setSwitchCounts((currentSwitchCounts) =>
+        Array.from(
+          { length },
+          (_, index) => (currentSwitchCounts[index] ?? 0) + 1,
+        ),
+      );
     }
-  }, [cycle, switchable]);
+  }, [cycle, length, switchable]);
 
   const characters = padded.split("");
   const previousCharacters = (switchable ? previousPadded : padded).split("");
@@ -117,58 +136,63 @@ export function SplitFlapText({
     const visiblePreviousCharacter =
       previousCharacter === " " ? "\u00A0" : previousCharacter;
     const visibleCharacter = character === " " ? "\u00A0" : character;
-
-    return (
+    const cellClassName = [
+      "relative inline-flex shrink-0 overflow-hidden border border-[#0d0e10] bg-[linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))] font-mono font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_16px_rgba(0,0,0,0.22)]",
+      "before:absolute before:inset-x-0 before:top-1/2 before:z-20 before:h-px before:-translate-y-1/2 before:bg-[var(--board-divider)]",
+      switchable
+        ? "cursor-pointer p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
+        : "",
+      toneClasses[tone],
+    ].join(" ");
+    const track = (
       <span
-        key={`${switchCount}-${index}`}
         className={[
-          "relative inline-flex shrink-0 overflow-hidden border border-[#0d0e10] bg-[linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))] font-mono font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_16px_rgba(0,0,0,0.22)]",
-          "before:absolute before:inset-x-0 before:top-1/2 before:z-20 before:h-px before:-translate-y-1/2 before:bg-[var(--board-divider)]",
-          toneClasses[tone],
+          "absolute inset-x-0 top-0 flex h-[200%] flex-col",
+          switchable ? "split-flap-track" : "",
         ].join(" ")}
-        style={splitFlapCellStyle}
+        style={switchable ? getSplitFlapTrackStyle(index) : undefined}
       >
-        <span
-          className={[
-            "absolute inset-x-0 top-0 flex h-[200%] flex-col",
-            switchable ? "split-flap-track" : "",
-          ].join(" ")}
-          style={switchable ? getSplitFlapTrackStyle(index) : undefined}
-        >
-          <span className="flex h-1/2 items-center justify-center">
-            {visiblePreviousCharacter}
-          </span>
-          <span className="flex h-1/2 items-center justify-center">
-            {visibleCharacter}
-          </span>
+        <span className="flex h-1/2 items-center justify-center">
+          {visiblePreviousCharacter}
+        </span>
+        <span className="flex h-1/2 items-center justify-center">
+          {visibleCharacter}
         </span>
       </span>
     );
-  });
-  const className = [
-    "inline-flex max-w-full flex-nowrap overflow-hidden",
-    switchable
-      ? "cursor-pointer select-none rounded-[0.3rem] border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
-      : "",
-  ].join(" ");
 
-  if (!switchable) {
+    if (!switchable) {
+      return (
+        <span
+          key={`${switchCounts[index] ?? 0}-${index}`}
+          className={cellClassName}
+          style={splitFlapCellStyle}
+        >
+          {track}
+        </span>
+      );
+    }
+
     return (
-      <div className={className} style={splitFlapStyle}>
-        {content}
-      </div>
+      <button
+        type="button"
+        aria-label={`Switch ticker cell ${index + 1} ${
+          character.trim() || "blank"
+        }`}
+        onClick={() => switchTicker(index)}
+        key={`${switchCounts[index] ?? 0}-${index}`}
+        className={cellClassName}
+        style={splitFlapCellStyle}
+      >
+        {track}
+      </button>
     );
-  }
+  });
+  const className = "inline-flex max-w-full flex-nowrap overflow-hidden";
 
   return (
-    <button
-      type="button"
-      aria-label={`Switch ticker ${sanitized.trim() || "blank"}`}
-      className={className}
-      style={splitFlapStyle}
-      onClick={switchTicker}
-    >
+    <div className={className} style={splitFlapStyle}>
       {content}
-    </button>
+    </div>
   );
 }
