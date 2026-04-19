@@ -130,7 +130,7 @@ function LocationSearchField({
 }
 
 export function JourneyForm({ onAddJourney }: JourneyFormProps) {
-  const [provider, setProvider] = useState<JourneyProviderId>("national-rail");
+  const provider: JourneyProviderId = "national-rail";
   const [origin, setOrigin] = useState<JourneyLocation | null>(null);
   const [destination, setDestination] = useState<JourneyLocation | null>(null);
 
@@ -158,29 +158,12 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
       className="rounded-[1.25rem] border border-[rgba(17,18,20,0.12)] bg-[#1c1d20] p-2 shadow-[0_14px_40px_rgba(0,0,0,0.16)]"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          aria-label="Journey provider"
-          value={provider}
-          onChange={(event) => {
-            const nextProvider = event.target.value as JourneyProviderId;
-            setProvider(nextProvider);
-            setOrigin(null);
-            setDestination(null);
-          }}
-          className="h-11 rounded-[0.9rem] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 text-sm uppercase tracking-[0.08em] text-[var(--paper)] outline-none transition focus:border-[var(--board-header)]"
-        >
-          <option value="national-rail">Rail</option>
-          <option value="tfl-tube">Tube</option>
-        </select>
-
         <LocationSearchField
           ariaLabel="Origin"
           provider={provider}
           value={origin}
           onSelect={setOrigin}
-          placeholder={
-            provider === "national-rail" ? "Origin: St Pancras or STP" : "Origin: King's Cross"
-          }
+          placeholder="Origin: St Pancras or STP"
         />
 
         <div className="hidden h-11 items-center px-1 text-[0.9rem] uppercase tracking-[0.16em] text-[var(--board-header)] sm:flex">
@@ -192,9 +175,7 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
           provider={provider}
           value={destination}
           onSelect={setDestination}
-          placeholder={
-            provider === "national-rail" ? "Destination: Leicester or LEI" : "Destination: Victoria"
-          }
+          placeholder="Destination: Leicester or LEI"
         />
 
         <button
