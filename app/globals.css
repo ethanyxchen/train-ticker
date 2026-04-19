@@ -53,7 +53,8 @@ select {
 }
 
 .split-flap-track {
-  animation: split-flap-switch 680ms cubic-bezier(0.76, 0, 0.24, 1) both;
+  animation-name: split-flap-switch;
+  animation-fill-mode: both;
   will-change: transform;
 }
 
@@ -62,21 +63,14 @@ select {
     transform: translateY(0);
   }
 
-  48% {
-    transform: translateY(-49%);
-  }
-
-  56% {
-    transform: translateY(-51%);
-  }
-
   100% {
-    transform: translateY(-50%);
+    transform: translateY(calc(-100% + 100% / var(--split-flap-frame-count)));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .split-flap-track {
-    animation-duration: 1ms;
+    animation-delay: 0ms !important;
+    animation-duration: 1ms !important;
   }
 }
