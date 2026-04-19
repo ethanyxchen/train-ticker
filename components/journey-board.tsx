@@ -11,10 +11,7 @@ import {
   type ResolvedBoardLayout,
   type BoardTickers,
 } from "@/lib/journeys/board-layout";
-import {
-  formatStationLabel,
-  getStationAbbreviation,
-} from "@/lib/journeys/board-display";
+import { getStationAbbreviation } from "@/lib/journeys/board-display";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
@@ -34,10 +31,8 @@ interface JourneyBoardProps {
 interface BoardRow {
   id: string;
   time: string;
-  originFull: string;
-  originAbbreviated: string;
-  destinationFull: string;
-  destinationAbbreviated: string;
+  origin: string;
+  destination: string;
   operator: string;
   platform: string;
   status: string;
@@ -156,10 +151,8 @@ function buildFallbackRow(
       departureField?.value,
       snapshot ? "--:--" : "LOAD",
     ),
-    originFull: formatStationLabel(journey.origin.label),
-    originAbbreviated: getStationAbbreviation(journey.origin),
-    destinationFull: formatStationLabel(journey.destination.label),
-    destinationAbbreviated: getStationAbbreviation(journey.destination),
+    origin: getStationAbbreviation(journey.origin),
+    destination: getStationAbbreviation(journey.destination),
     operator: "--",
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
@@ -193,10 +186,8 @@ function toBoardRows(
           option.scheduledDeparture ?? option.expectedDeparture,
           "--:--",
         ),
-        originFull: formatStationLabel(journey.origin.label),
-        originAbbreviated: getStationAbbreviation(journey.origin),
-        destinationFull: formatStationLabel(journey.destination.label),
-        destinationAbbreviated: getStationAbbreviation(journey.destination),
+        origin: getStationAbbreviation(journey.origin),
+        destination: getStationAbbreviation(journey.destination),
         operator: getBoardOperatorLabel({
           operator: option.operator,
           operatorCode: option.operatorCode,
@@ -329,7 +320,7 @@ export function JourneyBoard({
               Orig
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              {layout.useStationAbbreviations ? "Dest" : "Destination"}
+              Dest
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Op
@@ -357,21 +348,13 @@ export function JourneyBoard({
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
-                  value={
-                    layout.useStationAbbreviations
-                      ? row.originAbbreviated
-                      : row.originFull
-                  }
+                  value={row.origin}
                   length={boardTickers.origin}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
                 <SplitFlapText
-                  value={
-                    layout.useStationAbbreviations
-                      ? row.destinationAbbreviated
-                      : row.destinationFull
-                  }
+                  value={row.destination}
                   length={boardTickers.destination}
                   tone="neutral"
                   cycle={tickerCycle}

@@ -4,11 +4,11 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 
 import { JourneyBoard } from "@/components/journey-board";
 import { JourneyForm } from "@/components/journey-form";
+import { BASE_BOARD_TICKERS } from "@/lib/journeys/board-display";
 import {
-  BASE_BOARD_TICKERS,
-  resolveSharedBoardLayout,
-} from "@/lib/journeys/board-display";
-import type { ResolvedBoardLayout } from "@/lib/journeys/board-layout";
+  resolveBoardLayout,
+  type ResolvedBoardLayout,
+} from "@/lib/journeys/board-layout";
 import {
   createSavedJourney,
   normalizeSavedJourneys,
@@ -33,8 +33,7 @@ function hasSameBoardLayout(
     left.tickers.operator === right.tickers.operator &&
     left.tickers.platform === right.tickers.platform &&
     left.tickers.status === right.tickers.status &&
-    left.insetRem === right.insetRem &&
-    left.useStationAbbreviations === right.useStationAbbreviations
+    left.insetRem === right.insetRem
   );
 }
 
@@ -48,7 +47,6 @@ export function TrainTickerApp() {
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
     insetRem: 0,
-    useStationAbbreviations: false,
   });
 
   useEffect(() => {
@@ -147,9 +145,9 @@ export function TrainTickerApp() {
         Number.parseFloat(
           window.getComputedStyle(document.documentElement).fontSize,
         ) || 16;
-      const nextBoardLayout = resolveSharedBoardLayout({
+      const nextBoardLayout = resolveBoardLayout({
         availableRem: nextBoardStackElement.clientWidth / rootFontSize,
-        journeys,
+        baseTickers: BASE_BOARD_TICKERS,
         gapRem: BOARD_GAP_REM,
       });
 
@@ -169,7 +167,7 @@ export function TrainTickerApp() {
     resizeObserver.observe(boardStackElement);
 
     return () => resizeObserver.disconnect();
-  }, [journeys]);
+  }, []);
 
   return (
     <main className="flex w-full flex-1 flex-col gap-3 px-3 py-5 sm:px-5 sm:py-6">
