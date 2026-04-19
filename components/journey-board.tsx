@@ -8,6 +8,7 @@ import {
   getSplitFlapWidthRem,
 } from "@/components/split-flap-text";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
+import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
   JourneyLocation,
   JourneySnapshot,
@@ -27,6 +28,7 @@ interface BoardRow {
   time: string;
   origin: string;
   destination: string;
+  operator: string;
   platform: string;
   status: string;
   statusTone: JourneySnapshotTone;
@@ -35,7 +37,8 @@ interface BoardRow {
 const BOARD_TICKERS = {
   time: 5,
   origin: 3,
-  destination: 25,
+  destination: 22,
+  operator: 3,
   platform: 2,
   status: 7,
 } as const;
@@ -45,6 +48,7 @@ const BOARD_COLUMNS = [
   getSplitFlapWidth(BOARD_TICKERS.time),
   getSplitFlapWidth(BOARD_TICKERS.origin),
   getSplitFlapWidth(BOARD_TICKERS.destination),
+  getSplitFlapWidth(BOARD_TICKERS.operator),
   getSplitFlapWidth(BOARD_TICKERS.platform),
   getSplitFlapWidth(BOARD_TICKERS.status),
 ].join(" ");
@@ -174,6 +178,7 @@ function buildFallbackRow(
   const statusField = getBoardField(snapshot, "STAT");
   const platformField = getBoardField(snapshot, "PLAT");
   const departureField = getBoardField(snapshot, "DEP");
+  const operatorField = getBoardField(snapshot, "OPER") ?? getBoardField(snapshot, "LINE");
   const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
 
   return {
@@ -184,6 +189,9 @@ function buildFallbackRow(
     ),
     origin: getStationAbbreviation(journey.origin),
     destination: formatStationLabel(journey.destination.label),
+    operator: getBoardOperatorLabel({
+      operator: operatorField?.value,
+    }),
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
       liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
@@ -218,6 +226,10 @@ function toBoardRows(
         ),
         origin: getStationAbbreviation(journey.origin),
         destination: formatStationLabel(journey.destination.label),
+        operator: getBoardOperatorLabel({
+          operator: option.operator,
+          operatorCode: option.operatorCode,
+        }),
         platform: normalizeBoardValue(option.platform, "--"),
         status: normalizeBoardValue(optionStatus.value, "WAIT"),
         statusTone: optionStatus.tone,
@@ -244,6 +256,12 @@ function EmptyRow() {
       <SplitFlapText
         value=""
         length={BOARD_TICKERS.destination}
+        tone="neutral"
+        switchable={false}
+      />
+      <SplitFlapText
+        value=""
+        length={BOARD_TICKERS.operator}
         tone="neutral"
         switchable={false}
       />
@@ -301,6 +319,9 @@ export function JourneyBoard({
               Destination
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Op
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Pl
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
@@ -331,6 +352,12 @@ export function JourneyBoard({
                 <SplitFlapText
                   value={row.destination}
                   length={BOARD_TICKERS.destination}
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={row.operator}
+                  length={BOARD_TICKERS.operator}
                   tone="neutral"
                   cycle={tickerCycle}
                 />

@@ -435,6 +435,7 @@ export const nationalRailProvider: JourneyProvider = {
           expectedArrival: arrival.expected,
           platform: service?.platform,
           operator: service?.operator,
+          operatorCode: service?.operatorCode,
           note:
             callingPoints.length > 0
               ? `Calling at ${callingPoints

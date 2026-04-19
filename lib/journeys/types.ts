@@ -38,6 +38,7 @@ export interface JourneyOption {
   durationMinutes?: number;
   platform?: string;
   operator?: string;
+  operatorCode?: string;
   note?: string;
 }
 

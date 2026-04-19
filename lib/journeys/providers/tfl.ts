@@ -262,6 +262,7 @@ export const tflTubeProvider: JourneyProvider = {
             ),
             durationMinutes: candidate.duration,
             operator: lineNames.join(", ") || "London Underground",
+            operatorCode: "LU",
             note: dedupeText([
               mainLeg?.departurePoint?.commonName,
               mainLeg?.arrivalPoint?.commonName,
