@@ -118,16 +118,11 @@ export function TrainTickerApp() {
         journeys={journeys}
         snapshots={snapshots}
         refreshing={refreshing}
-        onRemove={(journeyId) => {
-          setJourneys((currentJourneys) =>
-            currentJourneys.filter((item) => item.id !== journeyId),
-          );
+        onClear={() => {
+          setJourneys([]);
+          setError(null);
           startTransition(() => {
-            setSnapshots((currentSnapshots) => {
-              const nextSnapshots = { ...currentSnapshots };
-              delete nextSnapshots[journeyId];
-              return nextSnapshots;
-            });
+            setSnapshots({});
           });
         }}
       />

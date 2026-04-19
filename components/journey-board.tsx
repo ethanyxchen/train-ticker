@@ -3,13 +3,13 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import {
-  SPLIT_FLAP_CELL,
   SplitFlapText,
   getSplitFlapWidth,
   getSplitFlapWidthRem,
 } from "@/components/split-flap-text";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import type {
+  JourneyLocation,
   JourneySnapshot,
   JourneySnapshotTone,
   SavedJourney,
@@ -19,23 +19,23 @@ interface JourneyBoardProps {
   journeys: SavedJourney[];
   snapshots: Record<string, JourneySnapshot>;
   refreshing: boolean;
-  onRemove: (journeyId: string) => void;
+  onClear: () => void;
 }
 
 interface BoardRow {
   id: string;
-  journeyId: string;
   time: string;
+  origin: string;
   destination: string;
   platform: string;
   status: string;
   statusTone: JourneySnapshotTone;
-  removable: boolean;
 }
 
 const BOARD_TICKERS = {
   time: 5,
-  destination: 22,
+  origin: 3,
+  destination: 27,
   platform: 2,
   status: 7,
 } as const;
@@ -43,10 +43,10 @@ const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
 const BOARD_COLUMNS = [
   getSplitFlapWidth(BOARD_TICKERS.time),
+  getSplitFlapWidth(BOARD_TICKERS.origin),
   getSplitFlapWidth(BOARD_TICKERS.destination),
   getSplitFlapWidth(BOARD_TICKERS.platform),
   getSplitFlapWidth(BOARD_TICKERS.status),
-  `${SPLIT_FLAP_CELL.heightRem}rem`,
 ].join(" ");
 const BOARD_GRID_STYLE = {
   gridTemplateColumns: BOARD_COLUMNS,
@@ -54,14 +54,11 @@ const BOARD_GRID_STYLE = {
 const BOARD_MIN_WIDTH_REM =
   Object.values(BOARD_TICKERS).reduce<number>(
     (width, length) => width + getSplitFlapWidthRem(length),
-    SPLIT_FLAP_CELL.heightRem,
+    0,
   ) +
-  Object.keys(BOARD_TICKERS).length * BOARD_GAP_REM;
+  (Object.keys(BOARD_TICKERS).length - 1) * BOARD_GAP_REM;
 const BOARD_MIN_WIDTH_STYLE = {
   minWidth: `${BOARD_MIN_WIDTH_REM}rem`,
-} satisfies CSSProperties;
-const BOARD_ACTION_STYLE = {
-  height: `${SPLIT_FLAP_CELL.heightRem}rem`,
 } satisfies CSSProperties;
 
 function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
@@ -79,6 +76,25 @@ function formatStationLabel(label: string) {
     .trim();
 
   return normalized || label;
+}
+
+function getStationAbbreviation(location: JourneyLocation) {
+  const id = location.id.trim().toUpperCase();
+
+  if (/^[A-Z0-9]{1,3}$/.test(id)) {
+    return id;
+  }
+
+  const words = formatStationLabel(location.label)
+    .replace(/['’]/g, "")
+    .replace(/[^A-Za-z0-9 ]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const abbreviation =
+    words.length > 1 ? words.map((word) => word[0]).join("") : words[0];
+
+  return (abbreviation ?? id.replace(/[^A-Z0-9]/g, "")).slice(0, 3);
 }
 
 function normalizeBoardValue(value: string | undefined, fallback: string) {
@@ -162,11 +178,11 @@ function buildFallbackRow(
 
   return {
     id: journey.id,
-    journeyId: journey.id,
     time: normalizeBoardValue(
       departureField?.value,
       snapshot ? "--:--" : "LOAD",
     ),
+    origin: getStationAbbreviation(journey.origin),
     destination: formatStationLabel(journey.destination.label),
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
@@ -178,7 +194,6 @@ function buildFallbackRow(
       statusField?.tone ??
       fallbackStatus?.tone ??
       (snapshot ? "neutral" : "warn"),
-    removable: true,
   };
 }
 
@@ -197,16 +212,15 @@ function toBoardRows(
 
       return {
         id: `${journey.id}-${option.id}-${index}`,
-        journeyId: journey.id,
         time: normalizeBoardValue(
           option.scheduledDeparture ?? option.expectedDeparture,
           "--:--",
         ),
+        origin: getStationAbbreviation(journey.origin),
         destination: formatStationLabel(journey.destination.label),
         platform: normalizeBoardValue(option.platform, "--"),
         status: normalizeBoardValue(optionStatus.value, "WAIT"),
         statusTone: optionStatus.tone,
-        removable: index === 0,
       };
     });
 }
@@ -218,6 +232,12 @@ function EmptyRow() {
         value=""
         length={BOARD_TICKERS.time}
         align="right"
+        tone="neutral"
+        switchable={false}
+      />
+      <SplitFlapText
+        value=""
+        length={BOARD_TICKERS.origin}
         tone="neutral"
         switchable={false}
       />
@@ -239,10 +259,6 @@ function EmptyRow() {
         tone="neutral"
         switchable={false}
       />
-      <div
-        className="rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)]"
-        style={BOARD_ACTION_STYLE}
-      />
     </div>
   );
 }
@@ -251,7 +267,7 @@ export function JourneyBoard({
   journeys,
   snapshots,
   refreshing,
-  onRemove,
+  onClear,
 }: JourneyBoardProps) {
   const [tickerCycle, setTickerCycle] = useState(0);
   const rows = journeys.flatMap((journey) =>
@@ -279,6 +295,9 @@ export function JourneyBoard({
               Time
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Orig
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Destination
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
@@ -287,7 +306,6 @@ export function JourneyBoard({
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Status
             </div>
-            <div />
           </div>
 
           <div className="space-y-2">
@@ -301,6 +319,12 @@ export function JourneyBoard({
                   value={row.time}
                   length={BOARD_TICKERS.time}
                   align="right"
+                  tone="neutral"
+                  cycle={tickerCycle}
+                />
+                <SplitFlapText
+                  value={row.origin}
+                  length={BOARD_TICKERS.origin}
                   tone="neutral"
                   cycle={tickerCycle}
                 />
@@ -322,21 +346,6 @@ export function JourneyBoard({
                   tone={row.statusTone}
                   cycle={tickerCycle}
                 />
-                <button
-                  type="button"
-                  onClick={() => onRemove(row.journeyId)}
-                  aria-label="Remove journey"
-                  className={[
-                    "rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] text-[0.95rem] transition",
-                    row.removable
-                      ? "text-[rgba(247,244,238,0.75)] hover:text-[var(--board-header)]"
-                      : "cursor-default text-transparent",
-                  ].join(" ")}
-                  style={BOARD_ACTION_STYLE}
-                  disabled={!row.removable}
-                >
-                  ×
-                </button>
               </div>
             ))}
 
@@ -347,14 +356,24 @@ export function JourneyBoard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-end gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-        <span
-          className={[
-            "h-2 w-2 rounded-full",
-            refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-          ].join(" ")}
-        />
-        <span>{refreshing ? "Updating" : "Live"}</span>
+      <div className="mt-3 flex items-center justify-end gap-3">
+        <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+            ].join(" ")}
+          />
+          <span>{refreshing ? "Updating" : "Live"}</span>
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={!journeys.length}
+          className="h-8 rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)] disabled:cursor-not-allowed disabled:text-[rgba(247,244,238,0.28)]"
+        >
+          Clear board
+        </button>
       </div>
     </section>
   );
