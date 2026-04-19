@@ -32,6 +32,7 @@ interface JourneyBoardProps {
   snapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
   refreshing: boolean;
+  introCycle?: number;
   onRemove: () => void;
 }
 
@@ -162,17 +163,30 @@ function buildFallbackRow(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
 ): BoardRow {
+  if (!snapshot) {
+    return {
+      id: journey.id,
+      time: "",
+      origin: "",
+      destination: "",
+      operator: "",
+      platform: "",
+      status: "",
+      statusTone: "neutral",
+    };
+  }
+
   const liveField = getBoardField(snapshot, "LIVE");
   const statusField = getBoardField(snapshot, "STAT");
   const platformField = getBoardField(snapshot, "PLAT");
   const departureField = getBoardField(snapshot, "DEP");
-  const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
+  const fallbackStatus = getStatusFallback(snapshot);
 
   return {
     id: journey.id,
     time: normalizeBoardValue(
       departureField?.value,
-      snapshot ? "--:--" : "LOAD",
+      "--:--",
     ),
     origin: getStationAbbreviation(journey.origin),
     destination: getStationAbbreviation(journey.destination),
@@ -180,13 +194,13 @@ function buildFallbackRow(
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
       liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
-      snapshot ? "WAIT" : "LOADING",
+      "WAIT",
     ),
     statusTone:
       liveField?.tone ??
       statusField?.tone ??
       fallbackStatus?.tone ??
-      (snapshot ? "neutral" : "warn"),
+      "neutral",
   };
 }
 
@@ -265,12 +279,14 @@ function BoardGridRow({
   columns,
   row,
   cycle,
+  animateOnMount = false,
   switchable = true,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
   row?: BoardRow;
   cycle?: number;
+  animateOnMount?: boolean;
   switchable?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns);
@@ -285,6 +301,7 @@ function BoardGridRow({
           align={column.align}
           tone={column.key === "status" && row ? row.statusTone : "neutral"}
           cycle={row ? cycle : undefined}
+          animateOnMount={row ? animateOnMount : false}
           switchable={switchable}
         />
       ))}
@@ -330,6 +347,7 @@ export function JourneyBoard({
   snapshot,
   layout,
   refreshing,
+  introCycle,
   onRemove,
 }: JourneyBoardProps) {
   const [tickerCycle, setTickerCycle] = useState(0);
@@ -439,12 +457,14 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
                       cycle={tickerCycle}
+                      animateOnMount={introCycle !== undefined}
                     />
                     <BoardGridRow
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
                       cycle={tickerCycle}
+                      animateOnMount={introCycle !== undefined}
                     />
                   </div>
                 ))}
@@ -470,6 +490,7 @@ export function JourneyBoard({
                     columns={BOARD_COLUMNS}
                     row={row}
                     cycle={tickerCycle}
+                    animateOnMount={introCycle !== undefined}
                   />
                 ))}
 
