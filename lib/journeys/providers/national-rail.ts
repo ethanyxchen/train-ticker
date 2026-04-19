@@ -4,9 +4,11 @@ import {
   delayMinutes,
   fetchJson,
   formatBoardValue,
+  normalizeEnvValue,
 } from "../provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
 import type { JourneyProvider } from "./base";
+import { loadRailDisruptionContext } from "./national-rail-disruptions";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
   BoardField,
@@ -79,11 +81,6 @@ type RailConnection = {
 interface RailBoardLoadResult {
   filteredBoards: DarwinStationBoard[];
   unfilteredBoards: DarwinStationBoard[];
-}
-
-function normalizeEnvValue(value?: string): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
 }
 
 function getRailConnection(): RailConnection | null {
@@ -326,6 +323,39 @@ function buildRailFields(
   ];
 }
 
+function buildNoServiceRailFields(
+  liveValue: string,
+  liveTone: BoardField["tone"],
+): BoardField[] {
+  return [
+    {
+      label: "DEP",
+      value: "--:--",
+      tone: "neutral",
+    },
+    {
+      label: "LIVE",
+      value: liveValue,
+      tone: liveTone,
+    },
+    {
+      label: "ARR",
+      value: "--:--",
+      tone: "neutral",
+    },
+    {
+      label: "PLAT",
+      value: "--",
+      tone: "neutral",
+    },
+    {
+      label: "OPER",
+      value: "--",
+      tone: "neutral",
+    },
+  ];
+}
+
 function getBoardServices(board: DarwinStationBoard): DarwinService[] {
   return [
     ...(board.trainServices ?? []),
@@ -499,7 +529,16 @@ export const nationalRailProvider: JourneyProvider = {
     );
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
-    const status = pickRailStatus(firstService, firstArrival);
+    const disruptionContext = await loadRailDisruptionContext(
+      journey,
+      dedupeText(
+        departures.map((service) => service.operatorCode?.toUpperCase()),
+      ),
+    );
+    const status =
+      departures.length === 0 && disruptionContext?.fallback
+        ? disruptionContext.fallback.status
+        : pickRailStatus(firstService, firstArrival);
 
     const alerts = dedupeText([
       ...boards.flatMap((currentBoard) =>
@@ -513,19 +552,34 @@ export const nationalRailProvider: JourneyProvider = {
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
+      ...(disruptionContext?.alerts ?? []),
     ]);
 
     return {
       journeyId: journey.id,
       provider: "national-rail",
       status,
-      headline: buildRailHeadline(firstService, firstArrival),
+      headline:
+        departures.length === 0 && disruptionContext?.fallback
+          ? disruptionContext.fallback.headline
+          : buildRailHeadline(firstService, firstArrival),
       subheadline:
-        departures.length > 0
-          ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
-          : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
-      refreshedAt: board.generatedAt ?? new Date().toISOString(),
-      boardFields: buildRailFields(firstService, firstArrival),
+        departures.length === 0 && disruptionContext?.fallback
+          ? disruptionContext.fallback.subheadline
+          : departures.length > 0
+            ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
+            : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
+      refreshedAt:
+        disruptionContext?.refreshedAt ??
+        board.generatedAt ??
+        new Date().toISOString(),
+      boardFields:
+        departures.length === 0
+          ? buildNoServiceRailFields(
+              disruptionContext?.fallback?.liveValue ?? "NO SERVICE",
+              disruptionContext?.fallback?.liveTone ?? "warn",
+            )
+          : buildRailFields(firstService, firstArrival),
       options: departures.map((service, index) => {
         const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
         const destinationName =

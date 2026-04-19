@@ -89,3 +89,8 @@ export function formatPence(value?: number | null): string {
     currency: "GBP",
   }).format(value / 100);
 }
+
+export function normalizeEnvValue(value?: string): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}

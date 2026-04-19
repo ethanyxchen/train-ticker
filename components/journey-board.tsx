@@ -20,6 +20,7 @@ import {
 } from "@/lib/journeys/board-layout";
 import { getStationAbbreviation } from "@/lib/journeys/board-display";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
+import { parseInlineHtml } from "@/lib/journeys/inline-html";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
   JourneySnapshot,
@@ -45,13 +46,6 @@ interface BoardRow {
   platform: string;
   status: string;
   statusTone: JourneySnapshotTone;
-}
-
-interface BoardIssue {
-  id: string;
-  headline: string;
-  subheadline: string;
-  tone: JourneySnapshotTone;
 }
 
 type BoardColumn = {
@@ -107,7 +101,7 @@ function getStatusFallback(snapshot: JourneySnapshot) {
   }
 
   if (headline.includes("NO ")) {
-    return { value: "NO SVC", tone: "warn" as const };
+    return { value: "NO SERVICE", tone: "warn" as const };
   }
 
   switch (snapshot.status) {
@@ -179,6 +173,7 @@ function buildFallbackRow(
   const liveField = getBoardField(snapshot, "LIVE");
   const statusField = getBoardField(snapshot, "STAT");
   const platformField = getBoardField(snapshot, "PLAT");
+  const operatorField = getBoardField(snapshot, "OPER");
   const departureField = getBoardField(snapshot, "DEP");
   const fallbackStatus = getStatusFallback(snapshot);
 
@@ -190,7 +185,7 @@ function buildFallbackRow(
     ),
     origin: getStationAbbreviation(journey.origin),
     destination: getStationAbbreviation(journey.destination),
-    operator: "--",
+    operator: normalizeBoardValue(operatorField?.value, "--"),
     platform: normalizeBoardValue(platformField?.value, "--"),
     status: normalizeBoardValue(
       liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
@@ -234,21 +229,6 @@ function toBoardRows(
         statusTone: optionStatus.tone,
       };
     });
-}
-
-function toBoardIssue(
-  snapshot: JourneySnapshot | undefined,
-): BoardIssue | null {
-  if (!snapshot || snapshot.options.length > 0) {
-    return null;
-  }
-
-  return {
-    id: snapshot.journeyId,
-    headline: snapshot.headline,
-    subheadline: snapshot.subheadline,
-    tone: snapshot.status === "error" ? "bad" : "warn",
-  };
 }
 
 function BoardHeader({
@@ -342,6 +322,30 @@ function EmptyRow({
   );
 }
 
+function AlertBody({ value }: { value: string }) {
+  const segments = parseInlineHtml(value);
+
+  return (
+    <>
+      {segments.map((segment, index) =>
+        segment.type === "link" ? (
+          <a
+            key={`${segment.href}-${index}`}
+            href={segment.href}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-[rgba(247,244,238,0.45)] underline-offset-2 transition hover:text-[var(--board-header)]"
+          >
+            {segment.label}
+          </a>
+        ) : (
+          <span key={`text-${index}`}>{segment.value}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export function JourneyBoard({
   journey,
   snapshot,
@@ -354,10 +358,13 @@ export function JourneyBoard({
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = toBoardRows(journey, snapshot);
-  const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
+  const allAlerts = snapshot?.alerts ?? [];
+  const alertCount = allAlerts.length;
+  const footerAlerts =
+    snapshot && snapshot.options.length > 0 ? allAlerts.slice(0, 3) : [];
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
@@ -418,24 +425,6 @@ export function JourneyBoard({
           className="w-full space-y-3"
           style={compact ? undefined : boardWidthStyle}
         >
-          {issue ? (
-            <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
-              <div
-                className={[
-                  "font-medium",
-                  issue.tone === "bad"
-                    ? "text-[var(--bad)]"
-                    : issue.tone === "good"
-                      ? "text-[var(--good)]"
-                      : "text-[var(--warn)]",
-                ].join(" ")}
-              >
-                {issue.headline}
-              </div>
-              {issue.subheadline ? <div>{issue.subheadline}</div> : null}
-            </div>
-          ) : null}
-
           {compact ? (
             <>
               <div className="space-y-2">
@@ -506,6 +495,24 @@ export function JourneyBoard({
           )}
         </div>
       </div>
+
+      {footerAlerts.length > 0 ? (
+        <div className="mt-3 space-y-2 border-t border-[#3a3b3d] pt-3 text-[0.78rem] leading-5 text-[rgba(247,244,238,0.78)]">
+          {footerAlerts.map((alert, index) => (
+            <div
+              key={`${snapshot?.journeyId ?? journey.id}-alert-${index}`}
+              className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
+            >
+              <AlertBody value={alert} />
+            </div>
+          ))}
+          {alertCount > footerAlerts.length ? (
+            <div className="px-1 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+              +{alertCount - footerAlerts.length} more alerts
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-3 flex items-center justify-end gap-3">
         <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
