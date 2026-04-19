@@ -51,3 +51,32 @@ select {
   background: rgba(226, 141, 53, 0.28);
   color: var(--paper);
 }
+
+.split-flap-track {
+  animation: split-flap-switch 680ms cubic-bezier(0.76, 0, 0.24, 1) both;
+  will-change: transform;
+}
+
+@keyframes split-flap-switch {
+  0% {
+    transform: translateY(0);
+  }
+
+  48% {
+    transform: translateY(-49%);
+  }
+
+  56% {
+    transform: translateY(-51%);
+  }
+
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-flap-track {
+    animation-duration: 1ms;
+  }
+}

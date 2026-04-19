@@ -11,7 +11,7 @@ The current MVP focuses on:
 - Saving journeys locally in the browser
 - Polling live API-backed journey data every 60 seconds
 - Supporting EMR-style National Rail trips and Tube trips first
-- Rendering everything in a retro split-flap-inspired board UI
+- Rendering everything in a retro split-flap-inspired board UI with timed and manual ticker switching
 
 ## Stack
 
@@ -107,7 +107,6 @@ Good follow-on work after this MVP:
 - replace the seeded National Rail station list with a full searchable station source
 - add journey editing instead of add/remove only
 - persist journeys server-side if you want multi-device sync
-- add a real animated split-flap transition on refresh
 - upgrade National Rail route planning from direct-board lookups to broader planner coverage when you have the right licensed feed
 
 ## Deploying

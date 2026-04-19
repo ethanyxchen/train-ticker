@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import {
   SPLIT_FLAP_CELL,
@@ -39,6 +39,7 @@ const BOARD_TICKERS = {
   platform: 2,
   status: 7,
 } as const;
+const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
 const BOARD_COLUMNS = [
   getSplitFlapWidth(BOARD_TICKERS.time),
@@ -218,18 +219,26 @@ function EmptyRow() {
         length={BOARD_TICKERS.time}
         align="right"
         tone="neutral"
+        switchable={false}
       />
       <SplitFlapText
         value=""
         length={BOARD_TICKERS.destination}
         tone="neutral"
+        switchable={false}
       />
       <SplitFlapText
         value=""
         length={BOARD_TICKERS.platform}
         tone="neutral"
+        switchable={false}
       />
-      <SplitFlapText value="" length={BOARD_TICKERS.status} tone="neutral" />
+      <SplitFlapText
+        value=""
+        length={BOARD_TICKERS.status}
+        tone="neutral"
+        switchable={false}
+      />
       <div
         className="rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)]"
         style={BOARD_ACTION_STYLE}
@@ -244,10 +253,19 @@ export function JourneyBoard({
   refreshing,
   onRemove,
 }: JourneyBoardProps) {
+  const [tickerCycle, setTickerCycle] = useState(0);
   const rows = journeys.flatMap((journey) =>
     toBoardRows(journey, snapshots[journey.id]),
   );
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setTickerCycle((currentTickerCycle) => currentTickerCycle + 1);
+    }, TICKER_SWITCH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
@@ -284,21 +302,25 @@ export function JourneyBoard({
                   length={BOARD_TICKERS.time}
                   align="right"
                   tone="neutral"
+                  cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.destination}
                   length={BOARD_TICKERS.destination}
                   tone="neutral"
+                  cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.platform}
                   length={BOARD_TICKERS.platform}
                   tone="neutral"
+                  cycle={tickerCycle}
                 />
                 <SplitFlapText
                   value={row.status}
                   length={BOARD_TICKERS.status}
                   tone={row.statusTone}
+                  cycle={tickerCycle}
                 />
                 <button
                   type="button"

@@ -1,4 +1,12 @@
-import type { CSSProperties } from "react";
+"use client";
+
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
 
@@ -7,6 +15,8 @@ interface SplitFlapTextProps {
   length: number;
   align?: "left" | "right";
   tone?: JourneySnapshotTone;
+  cycle?: number;
+  switchable?: boolean;
 }
 
 export const SPLIT_FLAP_CELL = {
@@ -29,6 +39,12 @@ const splitFlapCellStyle = {
   paddingInline: `${SPLIT_FLAP_CELL.paddingInlineRem}rem`,
   fontSize: `${SPLIT_FLAP_CELL.fontSizeRem}rem`,
 } satisfies CSSProperties;
+
+function getSplitFlapTrackStyle(index: number) {
+  return {
+    animationDelay: `${index * 18}ms`,
+  } satisfies CSSProperties;
+}
 
 const toneClasses: Record<JourneySnapshotTone, string> = {
   neutral: "text-[var(--board-text)]",
@@ -53,33 +69,106 @@ export function SplitFlapText({
   length,
   align = "left",
   tone = "neutral",
+  cycle,
+  switchable = true,
 }: SplitFlapTextProps) {
   const sanitized = value.toUpperCase().replace(/\s+/g, " ").slice(0, length);
   const padded =
     align === "right"
       ? sanitized.padStart(length, " ")
       : sanitized.padEnd(length, " ");
+  const paddedRef = useRef(padded);
+  const cycleRef = useRef(cycle);
+  const [previousPadded, setPreviousPadded] = useState(padded);
+  const [switchCount, setSwitchCount] = useState(0);
 
-  return (
-    <div
-      className="inline-flex max-w-full flex-nowrap overflow-hidden"
-      style={splitFlapStyle}
-    >
-      {padded.split("").map((character, index) => (
+  function switchTicker() {
+    setPreviousPadded(paddedRef.current);
+    setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
+  }
+
+  useLayoutEffect(() => {
+    if (paddedRef.current === padded) {
+      return;
+    }
+
+    setPreviousPadded(paddedRef.current);
+    paddedRef.current = padded;
+    setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
+  }, [padded]);
+
+  useEffect(() => {
+    if (cycleRef.current === cycle) {
+      return;
+    }
+
+    cycleRef.current = cycle;
+
+    if (switchable) {
+      setPreviousPadded(paddedRef.current);
+      setSwitchCount((currentSwitchCount) => currentSwitchCount + 1);
+    }
+  }, [cycle, switchable]);
+
+  const characters = padded.split("");
+  const previousCharacters = (switchable ? previousPadded : padded).split("");
+  const content = characters.map((character, index) => {
+    const previousCharacter = previousCharacters[index] ?? " ";
+    const visiblePreviousCharacter =
+      previousCharacter === " " ? "\u00A0" : previousCharacter;
+    const visibleCharacter = character === " " ? "\u00A0" : character;
+
+    return (
+      <span
+        key={`${switchCount}-${index}`}
+        className={[
+          "relative inline-flex shrink-0 overflow-hidden border border-[#0d0e10] bg-[linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))] font-mono font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_16px_rgba(0,0,0,0.22)]",
+          "before:absolute before:inset-x-0 before:top-1/2 before:z-20 before:h-px before:-translate-y-1/2 before:bg-[var(--board-divider)]",
+          toneClasses[tone],
+        ].join(" ")}
+        style={splitFlapCellStyle}
+      >
         <span
-          key={`${character}-${index}`}
           className={[
-            "relative inline-flex shrink-0 items-center justify-center border border-[#0d0e10] bg-[linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))] font-mono font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_16px_rgba(0,0,0,0.22)]",
-            "before:absolute before:inset-x-0 before:top-1/2 before:h-px before:-translate-y-1/2 before:bg-[var(--board-divider)]",
-            toneClasses[tone],
+            "absolute inset-x-0 top-0 flex h-[200%] flex-col",
+            switchable ? "split-flap-track" : "",
           ].join(" ")}
-          style={splitFlapCellStyle}
+          style={switchable ? getSplitFlapTrackStyle(index) : undefined}
         >
-          <span className="relative z-10">
-            {character === " " ? "\u00A0" : character}
+          <span className="flex h-1/2 items-center justify-center">
+            {visiblePreviousCharacter}
+          </span>
+          <span className="flex h-1/2 items-center justify-center">
+            {visibleCharacter}
           </span>
         </span>
-      ))}
-    </div>
+      </span>
+    );
+  });
+  const className = [
+    "inline-flex max-w-full flex-nowrap overflow-hidden",
+    switchable
+      ? "cursor-pointer select-none rounded-[0.3rem] border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
+      : "",
+  ].join(" ");
+
+  if (!switchable) {
+    return (
+      <div className={className} style={splitFlapStyle}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`Switch ticker ${sanitized.trim() || "blank"}`}
+      className={className}
+      style={splitFlapStyle}
+      onClick={switchTicker}
+    >
+      {content}
+    </button>
   );
 }
