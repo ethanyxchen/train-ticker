@@ -14,6 +14,12 @@ export interface BoardStationRow {
   destinationAbbreviated: string;
 }
 
+export interface ResolvedBoardLayout {
+  tickers: BoardTickers;
+  insetRem: number;
+  useStationAbbreviations: boolean;
+}
+
 interface ResolveBoardStationLayoutOptions {
   availableRem: number;
   baseTickers: BoardTickers;
@@ -58,7 +64,7 @@ export function resolveBoardStationLayout({
   baseTickers,
   rows,
   gapRem,
-}: ResolveBoardStationLayoutOptions) {
+}: ResolveBoardStationLayoutOptions): ResolvedBoardLayout {
   const fullTickers = {
     ...baseTickers,
     origin: getMaxStationLength(rows, "originFull", baseTickers.origin),

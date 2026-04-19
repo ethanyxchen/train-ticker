@@ -1,9 +1,14 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 
 import { JourneyBoard } from "@/components/journey-board";
 import { JourneyForm } from "@/components/journey-form";
+import {
+  BASE_BOARD_TICKERS,
+  resolveSharedBoardLayout,
+} from "@/lib/journeys/board-display";
+import type { ResolvedBoardLayout } from "@/lib/journeys/board-layout";
 import {
   createSavedJourney,
   normalizeSavedJourneys,
@@ -11,9 +16,26 @@ import {
 import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 
 const STORAGE_KEY = "train-ticker.saved-journeys.v1";
+const BOARD_GAP_REM = 0.75;
 
 function toSnapshotMap(items: JourneySnapshot[]): Record<string, JourneySnapshot> {
   return Object.fromEntries(items.map((snapshot) => [snapshot.journeyId, snapshot]));
+}
+
+function hasSameBoardLayout(
+  left: ResolvedBoardLayout,
+  right: ResolvedBoardLayout,
+) {
+  return (
+    left.tickers.time === right.tickers.time &&
+    left.tickers.origin === right.tickers.origin &&
+    left.tickers.destination === right.tickers.destination &&
+    left.tickers.operator === right.tickers.operator &&
+    left.tickers.platform === right.tickers.platform &&
+    left.tickers.status === right.tickers.status &&
+    left.insetRem === right.insetRem &&
+    left.useStationAbbreviations === right.useStationAbbreviations
+  );
 }
 
 export function TrainTickerApp() {
@@ -22,6 +44,12 @@ export function TrainTickerApp() {
   const [hydrated, setHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const boardStackRef = useRef<HTMLDivElement | null>(null);
+  const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
+    tickers: BASE_BOARD_TICKERS,
+    insetRem: 0,
+    useStationAbbreviations: false,
+  });
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -101,6 +129,48 @@ export function TrainTickerApp() {
     return () => window.clearInterval(intervalId);
   }, [hydrated, journeys, refreshJourneys]);
 
+  useEffect(() => {
+    const boardStackElement = boardStackRef.current;
+
+    if (!boardStackElement) {
+      return;
+    }
+
+    function updateBoardLayout() {
+      const nextBoardStackElement = boardStackRef.current;
+
+      if (!nextBoardStackElement) {
+        return;
+      }
+
+      const rootFontSize =
+        Number.parseFloat(
+          window.getComputedStyle(document.documentElement).fontSize,
+        ) || 16;
+      const nextBoardLayout = resolveSharedBoardLayout({
+        availableRem: nextBoardStackElement.clientWidth / rootFontSize,
+        journeys,
+        gapRem: BOARD_GAP_REM,
+      });
+
+      setBoardLayout((currentBoardLayout) =>
+        hasSameBoardLayout(currentBoardLayout, nextBoardLayout)
+          ? currentBoardLayout
+          : nextBoardLayout,
+      );
+    }
+
+    updateBoardLayout();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateBoardLayout();
+    });
+
+    resizeObserver.observe(boardStackElement);
+
+    return () => resizeObserver.disconnect();
+  }, [journeys]);
+
   return (
     <main className="flex w-full flex-1 flex-col gap-3 px-3 py-5 sm:px-5 sm:py-6">
       <div className="mx-auto w-full max-w-[1100px]">
@@ -125,12 +195,13 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <div className="w-full space-y-3">
+      <div className="w-full space-y-3" ref={boardStackRef}>
         {journeys.map((journey) => (
           <JourneyBoard
             key={journey.id}
             journey={journey}
             snapshot={snapshots[journey.id]}
+            layout={boardLayout}
             refreshing={refreshing}
             onRemove={() => {
               setJourneys((currentJourneys) =>

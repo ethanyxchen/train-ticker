@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import {
   SplitFlapText,
@@ -8,13 +8,16 @@ import {
 } from "@/components/split-flap-text";
 import {
   getBoardWidthRem,
-  resolveBoardStationLayout,
+  type ResolvedBoardLayout,
   type BoardTickers,
 } from "@/lib/journeys/board-layout";
+import {
+  formatStationLabel,
+  getStationAbbreviation,
+} from "@/lib/journeys/board-display";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
 import type {
-  JourneyLocation,
   JourneySnapshot,
   JourneySnapshotTone,
   SavedJourney,
@@ -23,6 +26,7 @@ import type {
 interface JourneyBoardProps {
   journey: SavedJourney;
   snapshot: JourneySnapshot | undefined;
+  layout: ResolvedBoardLayout;
   refreshing: boolean;
   onRemove: () => void;
 }
@@ -47,14 +51,6 @@ interface BoardIssue {
   tone: JourneySnapshotTone;
 }
 
-const BASE_BOARD_TICKERS: BoardTickers = {
-  time: 5,
-  origin: 3,
-  destination: 22,
-  operator: 3,
-  platform: 2,
-  status: 7,
-};
 const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
 
@@ -71,51 +67,8 @@ function getBoardGridStyle(tickers: BoardTickers) {
   } satisfies CSSProperties;
 }
 
-function hasSameTickerLengths(left: BoardTickers, right: BoardTickers) {
-  return (
-    left.time === right.time &&
-    left.origin === right.origin &&
-    left.destination === right.destination &&
-    left.operator === right.operator &&
-    left.platform === right.platform &&
-    left.status === right.status
-  );
-}
-
 function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
   return snapshot?.boardFields.find((field) => field.label === label);
-}
-
-function formatStationLabel(label: string) {
-  const normalized = label
-    .replace(/\bSt\./gi, "St")
-    .replace(/\s+International\b/gi, "")
-    .replace(/\s+Underground Station\b/gi, "")
-    .replace(/\s+Rail Station\b/gi, "")
-    .replace(/\s+Station\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return normalized || label;
-}
-
-function getStationAbbreviation(location: JourneyLocation) {
-  const id = location.id.trim().toUpperCase();
-
-  if (/^[A-Z0-9]{1,3}$/.test(id)) {
-    return id;
-  }
-
-  const words = formatStationLabel(location.label)
-    .replace(/['’]/g, "")
-    .replace(/[^A-Za-z0-9 ]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const abbreviation =
-    words.length > 1 ? words.map((word) => word[0]).join("") : words[0];
-
-  return (abbreviation ?? id.replace(/[^A-Z0-9]/g, "")).slice(0, 3);
 }
 
 function normalizeBoardValue(value: string | undefined, fallback: string) {
@@ -319,37 +272,21 @@ function EmptyRow({ tickers }: { tickers: BoardTickers }) {
 export function JourneyBoard({
   journey,
   snapshot,
+  layout,
   refreshing,
   onRemove,
 }: JourneyBoardProps) {
-  const boardRef = useRef<HTMLDivElement | null>(null);
   const [tickerCycle, setTickerCycle] = useState(0);
-  const [boardTickers, setBoardTickers] = useState(BASE_BOARD_TICKERS);
-  const [boardInsetRem, setBoardInsetRem] = useState(0);
-  const [useStationAbbreviations, setUseStationAbbreviations] = useState(false);
   const rows = toBoardRows(journey, snapshot);
   const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
+  const boardTickers = layout.tickers;
   const boardGridStyle = getBoardGridStyle(boardTickers);
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
-    paddingInline: `${boardInsetRem}rem`,
+    paddingInline: `${layout.insetRem}rem`,
   } satisfies CSSProperties;
-  const stationLayoutSignature = rows
-    .map(
-      (row) =>
-        `${row.originFull}:${row.originAbbreviated}:${row.destinationFull}:${row.destinationAbbreviated}`,
-    )
-    .join("|");
-  const stationLayoutRows = JSON.stringify(
-    rows.map((row) => ({
-      originFull: row.originFull,
-      originAbbreviated: row.originAbbreviated,
-      destinationFull: row.destinationFull,
-      destinationAbbreviated: row.destinationAbbreviated,
-    })),
-  );
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -359,62 +296,9 @@ export function JourneyBoard({
     return () => window.clearInterval(intervalId);
   }, []);
 
-  useEffect(() => {
-    const boardElement = boardRef.current;
-
-    if (!boardElement) {
-      return;
-    }
-
-    function updateBoardLayout() {
-      const nextBoardElement = boardRef.current;
-
-      if (!nextBoardElement) {
-        return;
-      }
-
-      const rootFontSize =
-        Number.parseFloat(
-          window.getComputedStyle(document.documentElement).fontSize,
-        ) || 16;
-      const nextLayout = resolveBoardStationLayout({
-        availableRem: nextBoardElement.clientWidth / rootFontSize,
-        baseTickers: BASE_BOARD_TICKERS,
-        rows: JSON.parse(stationLayoutRows),
-        gapRem: BOARD_GAP_REM,
-      });
-
-      setBoardTickers((currentTickers) =>
-        hasSameTickerLengths(currentTickers, nextLayout.tickers)
-          ? currentTickers
-          : nextLayout.tickers,
-      );
-      setBoardInsetRem((currentInsetRem) =>
-        currentInsetRem === nextLayout.insetRem
-          ? currentInsetRem
-          : nextLayout.insetRem,
-      );
-      setUseStationAbbreviations((currentValue) =>
-        currentValue === nextLayout.useStationAbbreviations
-          ? currentValue
-          : nextLayout.useStationAbbreviations,
-      );
-    }
-
-    updateBoardLayout();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateBoardLayout();
-    });
-
-    resizeObserver.observe(boardElement);
-
-    return () => resizeObserver.disconnect();
-  }, [stationLayoutRows, stationLayoutSignature]);
-
   return (
     <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-      <div className="overflow-x-auto" ref={boardRef}>
+      <div className="overflow-x-auto">
         <div className="w-full space-y-3" style={boardWidthStyle}>
           {issue ? (
             <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
@@ -445,7 +329,7 @@ export function JourneyBoard({
               Orig
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              {useStationAbbreviations ? "Dest" : "Destination"}
+              {layout.useStationAbbreviations ? "Dest" : "Destination"}
             </div>
             <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
               Op
@@ -474,7 +358,7 @@ export function JourneyBoard({
                 />
                 <SplitFlapText
                   value={
-                    useStationAbbreviations
+                    layout.useStationAbbreviations
                       ? row.originAbbreviated
                       : row.originFull
                   }
@@ -484,7 +368,7 @@ export function JourneyBoard({
                 />
                 <SplitFlapText
                   value={
-                    useStationAbbreviations
+                    layout.useStationAbbreviations
                       ? row.destinationAbbreviated
                       : row.destinationFull
                   }
