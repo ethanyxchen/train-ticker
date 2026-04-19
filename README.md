@@ -62,7 +62,7 @@ Important limitation for the MVP:
 - National Rail live lookup is implemented for direct services using Darwin live boards.
 - The app uses `GetDepBoardWithDetails/{crs}` and matches the saved destination against service destinations and calling points, which works better for intermediate stops like Leicester.
 - The required setup is the RDM proxy URL plus consumer key. For the current Darwin product flow, the consumer secret is stored but not sent on the request because the proxy uses API-key authentication.
-- National Rail station search is currently seeded with common EMR/London stations plus manual CRS code entry.
+- National Rail station search now uses a static nationwide station dataset covering all stations queryable through Darwin, plus manual CRS code entry.
 - Full nationwide rail station discovery is intentionally isolated behind the provider layer so it can be swapped in later without changing the UI data model.
 
 ### TfL Unified API
@@ -97,8 +97,15 @@ These commands currently pass:
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
+
+## Data Attribution
+
+National Rail station search data is provided by `uk-railway-stations` by David Wheatley, derived from Trainline EU sources, and licensed under ODbL-1.0:
+
+- https://github.com/davwheat/uk-railway-stations
 
 ## Next Steps
 

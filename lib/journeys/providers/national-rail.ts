@@ -1,4 +1,4 @@
-import { NATIONAL_RAIL_SEED_STATIONS } from "@/lib/data/national-rail-seed-stations";
+import { searchNationalRailStations } from "@/lib/data/national-rail-stations";
 import {
   appendSearchParams,
   dedupeText,
@@ -10,7 +10,6 @@ import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import type { JourneyProvider } from "@/lib/journeys/providers/base";
 import type {
   BoardField,
-  JourneySearchResult,
   JourneySnapshot,
   JourneySnapshotStatus,
   SavedJourney,
@@ -430,39 +429,10 @@ function dedupeRailServices(services: DarwinService[]): DarwinService[] {
   });
 }
 
-function searchSeedStations(query: string): JourneySearchResult[] {
-  const normalized = query.trim().toLowerCase();
-
-  if (!normalized) {
-    return [];
-  }
-
-  const matches = NATIONAL_RAIL_SEED_STATIONS.filter((station) => {
-    return (
-      station.id.toLowerCase().includes(normalized) ||
-      station.label.toLowerCase().includes(normalized) ||
-      station.secondaryLabel?.toLowerCase().includes(normalized)
-    );
-  }).slice(0, 8);
-
-  const manualCode = query.trim().toUpperCase();
-
-  if (/^[A-Z]{3}$/.test(manualCode) && !matches.some((match) => match.id === manualCode)) {
-    matches.unshift({
-      id: manualCode,
-      label: manualCode,
-      secondaryLabel: "Manual CRS entry",
-      provider: "national-rail",
-    });
-  }
-
-  return matches;
-}
-
 export const nationalRailProvider: JourneyProvider = {
   id: "national-rail",
   async search(query) {
-    return searchSeedStations(query);
+    return searchNationalRailStations(query);
   },
   async getSnapshot(journey) {
     const connection = getRailConnection();
