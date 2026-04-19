@@ -576,7 +576,7 @@ export const nationalRailProvider: JourneyProvider = {
       boardFields:
         departures.length === 0
           ? buildNoServiceRailFields(
-              disruptionContext?.fallback?.liveValue ?? "NO SVC",
+              disruptionContext?.fallback?.liveValue ?? "NO SERVICE",
               disruptionContext?.fallback?.liveTone ?? "warn",
             )
           : buildRailFields(firstService, firstArrival),

@@ -14,7 +14,7 @@ const BASE_TICKERS: BoardTickers = {
   destination: 3,
   operator: 3,
   platform: 2,
-  status: 7,
+  status: 10,
 };
 const GAP_REM = 0.75;
 

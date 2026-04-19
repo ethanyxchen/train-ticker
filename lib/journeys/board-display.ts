@@ -7,7 +7,7 @@ export const BASE_BOARD_TICKERS: BoardTickers = {
   destination: 3,
   operator: 3,
   platform: 2,
-  status: 7,
+  status: 10,
 };
 
 function formatStationLabel(label: string) {

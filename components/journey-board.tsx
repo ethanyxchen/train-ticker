@@ -107,7 +107,7 @@ function getStatusFallback(snapshot: JourneySnapshot) {
   }
 
   if (headline.includes("NO ")) {
-    return { value: "NO SVC", tone: "warn" as const };
+    return { value: "NO SERVICE", tone: "warn" as const };
   }
 
   switch (snapshot.status) {
