@@ -1,3 +1,5 @@
+import { getSplitFlapWidthRem } from "@/lib/journeys/split-flap-metrics";
+
 export interface BoardTickers {
   time: number;
   origin: number;
@@ -17,9 +19,6 @@ interface ResolveBoardLayoutOptions {
   baseTickers: BoardTickers;
   gapRem: number;
 }
-
-const SPLIT_FLAP_WIDTH_REM = 1.376;
-const SPLIT_FLAP_GAP_REM = 0.08;
 
 function getAdditionalTickerWidthRem() {
   return getSplitFlapWidthRem(2) - getSplitFlapWidthRem(1);
@@ -64,11 +63,4 @@ export function resolveBoardLayout({
     tickers,
     insetRem: Math.max((availableRem - getBoardWidthRem(tickers, gapRem)) / 2, 0),
   };
-}
-
-function getSplitFlapWidthRem(length: number) {
-  return (
-    length * SPLIT_FLAP_WIDTH_REM +
-    Math.max(length - 1, 0) * SPLIT_FLAP_GAP_REM
-  );
 }

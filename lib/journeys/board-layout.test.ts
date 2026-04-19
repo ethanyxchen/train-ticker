@@ -1,21 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { BASE_BOARD_TICKERS } from "./board-display.ts";
 import {
   getBoardWidthRem,
   resolveBoardLayout,
   shouldUseCompactBoardLayout,
-  type BoardTickers,
 } from "./board-layout.ts";
 
-const BASE_TICKERS: BoardTickers = {
-  time: 5,
-  origin: 3,
-  destination: 3,
-  operator: 3,
-  platform: 2,
-  status: 7,
-};
+const BASE_TICKERS = BASE_BOARD_TICKERS;
 const GAP_REM = 0.75;
 
 test("keeps the hardcoded column widths when the viewport fits the base board", () => {
