@@ -250,91 +250,89 @@ export function JourneyBoard({
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
 
   return (
-    <section className="rounded-[1.7rem] border-[8px] border-[#bcb7af] bg-[linear-gradient(180deg,#d8d3cc,#a7a39d)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
-      <div className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-        <div className="overflow-x-auto">
-          <div className="space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
-            <div
-              className="grid items-center gap-3 px-[0.15rem]"
-              style={BOARD_GRID_STYLE}
-            >
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Time
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Destination
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Pl
-              </div>
-              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-                Status
-              </div>
-              <div />
+    <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
+      <div className="overflow-x-auto">
+        <div className="space-y-3" style={BOARD_MIN_WIDTH_STYLE}>
+          <div
+            className="grid items-center gap-3 px-[0.15rem]"
+            style={BOARD_GRID_STYLE}
+          >
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Time
             </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Destination
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Pl
+            </div>
+            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              Status
+            </div>
+            <div />
+          </div>
 
-            <div className="space-y-2">
-              {rows.map((row) => (
-                <div
-                  key={row.id}
-                  className="grid items-center gap-3"
-                  style={BOARD_GRID_STYLE}
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div
+                key={row.id}
+                className="grid items-center gap-3"
+                style={BOARD_GRID_STYLE}
+              >
+                <SplitFlapText
+                  value={row.time}
+                  length={BOARD_TICKERS.time}
+                  align="right"
+                  tone="neutral"
+                />
+                <SplitFlapText
+                  value={row.destination}
+                  length={BOARD_TICKERS.destination}
+                  tone="neutral"
+                />
+                <SplitFlapText
+                  value={row.platform}
+                  length={BOARD_TICKERS.platform}
+                  tone="neutral"
+                />
+                <SplitFlapText
+                  value={row.status}
+                  length={BOARD_TICKERS.status}
+                  tone={row.statusTone}
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemove(row.journeyId)}
+                  aria-label="Remove journey"
+                  className={[
+                    "rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] text-[0.95rem] transition",
+                    row.removable
+                      ? "text-[rgba(247,244,238,0.75)] hover:text-[var(--board-header)]"
+                      : "cursor-default text-transparent",
+                  ].join(" ")}
+                  style={BOARD_ACTION_STYLE}
+                  disabled={!row.removable}
                 >
-                  <SplitFlapText
-                    value={row.time}
-                    length={BOARD_TICKERS.time}
-                    align="right"
-                    tone="neutral"
-                  />
-                  <SplitFlapText
-                    value={row.destination}
-                    length={BOARD_TICKERS.destination}
-                    tone="neutral"
-                  />
-                  <SplitFlapText
-                    value={row.platform}
-                    length={BOARD_TICKERS.platform}
-                    tone="neutral"
-                  />
-                  <SplitFlapText
-                    value={row.status}
-                    length={BOARD_TICKERS.status}
-                    tone={row.statusTone}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onRemove(row.journeyId)}
-                    aria-label="Remove journey"
-                    className={[
-                      "rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] text-[0.95rem] transition",
-                      row.removable
-                        ? "text-[rgba(247,244,238,0.75)] hover:text-[var(--board-header)]"
-                        : "cursor-default text-transparent",
-                    ].join(" ")}
-                    style={BOARD_ACTION_STYLE}
-                    disabled={!row.removable}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+                  ×
+                </button>
+              </div>
+            ))}
 
-              {Array.from({ length: emptyRowCount }).map((_, index) => (
-                <EmptyRow key={`empty-row-${index}`} />
-              ))}
-            </div>
+            {Array.from({ length: emptyRowCount }).map((_, index) => (
+              <EmptyRow key={`empty-row-${index}`} />
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="mt-3 flex items-center justify-end gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-          <span
-            className={[
-              "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-            ].join(" ")}
-          />
-          <span>{refreshing ? "Updating" : "Live"}</span>
-        </div>
+      <div className="mt-3 flex items-center justify-end gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+        <span
+          className={[
+            "h-2 w-2 rounded-full",
+            refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+          ].join(" ")}
+        />
+        <span>{refreshing ? "Updating" : "Live"}</span>
       </div>
     </section>
   );
