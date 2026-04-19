@@ -4,6 +4,10 @@ import { startTransition, useCallback, useEffect, useState } from "react";
 
 import { JourneyBoard } from "@/components/journey-board";
 import { JourneyForm } from "@/components/journey-form";
+import {
+  createSavedJourney,
+  normalizeSavedJourneys,
+} from "@/lib/journeys/identity";
 import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 
 const STORAGE_KEY = "train-ticker.saved-journeys.v1";
@@ -25,7 +29,7 @@ export function TrainTickerApp() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as SavedJourney[];
-        setJourneys(parsed);
+        setJourneys(normalizeSavedJourneys(parsed));
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
@@ -102,10 +106,15 @@ export function TrainTickerApp() {
       <div className="mx-auto w-full max-w-[1100px]">
         <JourneyForm
           onAddJourney={(journey) => {
-            setJourneys((currentJourneys) => [
-              ...currentJourneys,
-              { ...journey, id: crypto.randomUUID() },
-            ]);
+            setJourneys((currentJourneys) => {
+              const nextJourney = createSavedJourney(journey);
+
+              if (currentJourneys.some((item) => item.id === nextJourney.id)) {
+                return currentJourneys;
+              }
+
+              return [...currentJourneys, nextJourney];
+            });
           }}
         />
       </div>
@@ -116,18 +125,28 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <JourneyBoard
-        journeys={journeys}
-        snapshots={snapshots}
-        refreshing={refreshing}
-        onClear={() => {
-          setJourneys([]);
-          setError(null);
-          startTransition(() => {
-            setSnapshots({});
-          });
-        }}
-      />
+      <div className="mx-auto w-full max-w-[1100px] space-y-3">
+        {journeys.map((journey) => (
+          <JourneyBoard
+            key={journey.id}
+            journey={journey}
+            snapshot={snapshots[journey.id]}
+            refreshing={refreshing}
+            onRemove={() => {
+              setJourneys((currentJourneys) =>
+                currentJourneys.filter((item) => item.id !== journey.id),
+              );
+              startTransition(() => {
+                setSnapshots((currentSnapshots) => {
+                  const nextSnapshots = { ...currentSnapshots };
+                  delete nextSnapshots[journey.id];
+                  return nextSnapshots;
+                });
+              });
+            }}
+          />
+        ))}
+      </div>
     </main>
   );
 }

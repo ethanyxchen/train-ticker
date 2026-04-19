@@ -21,10 +21,10 @@ import type {
 } from "@/lib/journeys/types";
 
 interface JourneyBoardProps {
-  journeys: SavedJourney[];
-  snapshots: Record<string, JourneySnapshot>;
+  journey: SavedJourney;
+  snapshot: JourneySnapshot | undefined;
   refreshing: boolean;
-  onClear: () => void;
+  onRemove: () => void;
 }
 
 interface BoardRow {
@@ -42,8 +42,8 @@ interface BoardRow {
 
 interface BoardIssue {
   id: string;
-  route: string;
   headline: string;
+  subheadline: string;
   tone: JourneySnapshotTone;
 }
 
@@ -71,10 +71,7 @@ function getBoardGridStyle(tickers: BoardTickers) {
   } satisfies CSSProperties;
 }
 
-function hasSameTickerLengths(
-  left: BoardTickers,
-  right: BoardTickers,
-) {
+function hasSameTickerLengths(left: BoardTickers, right: BoardTickers) {
   return (
     left.time === right.time &&
     left.origin === right.origin &&
@@ -83,6 +80,10 @@ function hasSameTickerLengths(
     left.platform === right.platform &&
     left.status === right.status
   );
+}
+
+function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
+  return snapshot?.boardFields.find((field) => field.label === label);
 }
 
 function formatStationLabel(label: string) {
@@ -186,12 +187,46 @@ function getOptionStatus(
   };
 }
 
+function buildFallbackRow(
+  journey: SavedJourney,
+  snapshot: JourneySnapshot | undefined,
+): BoardRow {
+  const liveField = getBoardField(snapshot, "LIVE");
+  const statusField = getBoardField(snapshot, "STAT");
+  const platformField = getBoardField(snapshot, "PLAT");
+  const departureField = getBoardField(snapshot, "DEP");
+  const fallbackStatus = snapshot ? getStatusFallback(snapshot) : undefined;
+
+  return {
+    id: journey.id,
+    time: normalizeBoardValue(
+      departureField?.value,
+      snapshot ? "--:--" : "LOAD",
+    ),
+    originFull: formatStationLabel(journey.origin.label),
+    originAbbreviated: getStationAbbreviation(journey.origin),
+    destinationFull: formatStationLabel(journey.destination.label),
+    destinationAbbreviated: getStationAbbreviation(journey.destination),
+    operator: "--",
+    platform: normalizeBoardValue(platformField?.value, "--"),
+    status: normalizeBoardValue(
+      liveField?.value ?? statusField?.value ?? fallbackStatus?.value,
+      snapshot ? "WAIT" : "LOADING",
+    ),
+    statusTone:
+      liveField?.tone ??
+      statusField?.tone ??
+      fallbackStatus?.tone ??
+      (snapshot ? "neutral" : "warn"),
+  };
+}
+
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
 ): BoardRow[] {
   if (!snapshot?.options.length) {
-    return [];
+    return [buildFallbackRow(journey, snapshot)];
   }
 
   return snapshot.options
@@ -221,7 +256,6 @@ function toBoardRows(
 }
 
 function toBoardIssue(
-  journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
 ): BoardIssue | null {
   if (!snapshot || snapshot.options.length > 0) {
@@ -229,9 +263,9 @@ function toBoardIssue(
   }
 
   return {
-    id: journey.id,
-    route: `${journey.origin.label} to ${journey.destination.label}`,
+    id: snapshot.journeyId,
     headline: snapshot.headline,
+    subheadline: snapshot.subheadline,
     tone: snapshot.status === "error" ? "bad" : "warn",
   };
 }
@@ -283,23 +317,18 @@ function EmptyRow({ tickers }: { tickers: BoardTickers }) {
 }
 
 export function JourneyBoard({
-  journeys,
-  snapshots,
+  journey,
+  snapshot,
   refreshing,
-  onClear,
+  onRemove,
 }: JourneyBoardProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [tickerCycle, setTickerCycle] = useState(0);
   const [boardTickers, setBoardTickers] = useState(BASE_BOARD_TICKERS);
   const [boardInsetRem, setBoardInsetRem] = useState(0);
   const [useStationAbbreviations, setUseStationAbbreviations] = useState(false);
-  const rows = journeys.flatMap((journey) =>
-    toBoardRows(journey, snapshots[journey.id]),
-  );
-  const issues = journeys.flatMap((journey) => {
-    const issue = toBoardIssue(journey, snapshots[journey.id]);
-    return issue ? [issue] : [];
-  });
+  const rows = toBoardRows(journey, snapshot);
+  const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardGridStyle = getBoardGridStyle(boardTickers);
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
@@ -307,6 +336,7 @@ export function JourneyBoard({
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${boardInsetRem}rem`,
   } satisfies CSSProperties;
+  const journeyLabel = `${formatStationLabel(journey.origin.label)} to ${formatStationLabel(journey.destination.label)}`;
   const stationLayoutSignature = rows
     .map(
       (row) =>
@@ -384,134 +414,143 @@ export function JourneyBoard({
   }, [stationLayoutRows, stationLayoutSignature]);
 
   return (
-    <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
-      <div className="overflow-x-auto" ref={boardRef}>
-        <div className="w-full space-y-3" style={boardWidthStyle}>
-          {issues.length ? (
-            <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
-              {issues.map((issue) => (
-                <div key={issue.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className={[
-                      "font-medium",
-                      issue.tone === "bad"
-                        ? "text-[var(--bad)]"
-                        : issue.tone === "good"
-                          ? "text-[var(--good)]"
-                          : "text-[var(--warn)]",
-                    ].join(" ")}
-                  >
-                    {issue.route}
-                  </span>
-                  <span>{issue.headline}</span>
+    <section className="rounded-[1.7rem] border-[8px] border-[#bcb7af] bg-[linear-gradient(180deg,#d8d3cc,#a7a39d)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)]">
+      <div className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+              Journey
+            </div>
+            <div className="truncate text-[0.84rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+              {journeyLabel}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+              <span
+                className={[
+                  "h-2 w-2 rounded-full",
+                  refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+                ].join(" ")}
+              />
+              <span>{refreshing ? "Updating" : "Live"}</span>
+            </div>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="h-8 rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto" ref={boardRef}>
+          <div className="w-full space-y-3" style={boardWidthStyle}>
+            {issue ? (
+              <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
+                <div
+                  className={[
+                    "font-medium",
+                    issue.tone === "bad"
+                      ? "text-[var(--bad)]"
+                      : issue.tone === "good"
+                        ? "text-[var(--good)]"
+                        : "text-[var(--warn)]",
+                  ].join(" ")}
+                >
+                  {issue.headline}
+                </div>
+                {issue.subheadline ? <div>{issue.subheadline}</div> : null}
+              </div>
+            ) : null}
+
+            <div
+              className="grid items-center gap-3 px-[0.15rem]"
+              style={boardGridStyle}
+            >
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                Time
+              </div>
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                Orig
+              </div>
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                {useStationAbbreviations ? "Dest" : "Destination"}
+              </div>
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                Op
+              </div>
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                Pl
+              </div>
+              <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
+                Status
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {rows.map((row) => (
+                <div
+                  key={row.id}
+                  className="grid items-center gap-3"
+                  style={boardGridStyle}
+                >
+                  <SplitFlapText
+                    value={row.time}
+                    length={boardTickers.time}
+                    align="right"
+                    tone="neutral"
+                    cycle={tickerCycle}
+                  />
+                  <SplitFlapText
+                    value={
+                      useStationAbbreviations
+                        ? row.originAbbreviated
+                        : row.originFull
+                    }
+                    length={boardTickers.origin}
+                    tone="neutral"
+                    cycle={tickerCycle}
+                  />
+                  <SplitFlapText
+                    value={
+                      useStationAbbreviations
+                        ? row.destinationAbbreviated
+                        : row.destinationFull
+                    }
+                    length={boardTickers.destination}
+                    tone="neutral"
+                    cycle={tickerCycle}
+                  />
+                  <SplitFlapText
+                    value={row.operator}
+                    length={boardTickers.operator}
+                    tone="neutral"
+                    cycle={tickerCycle}
+                  />
+                  <SplitFlapText
+                    value={row.platform}
+                    length={boardTickers.platform}
+                    tone="neutral"
+                    cycle={tickerCycle}
+                  />
+                  <SplitFlapText
+                    value={row.status}
+                    length={boardTickers.status}
+                    tone={row.statusTone}
+                    cycle={tickerCycle}
+                  />
                 </div>
               ))}
-            </div>
-          ) : null}
-          <div
-            className="grid items-center gap-3 px-[0.15rem]"
-            style={boardGridStyle}
-          >
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Time
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Orig
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              {useStationAbbreviations ? "Dest" : "Destination"}
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Op
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Pl
-            </div>
-            <div className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]">
-              Status
+
+              {Array.from({ length: emptyRowCount }).map((_, index) => (
+                <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
+              ))}
             </div>
           </div>
-
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div
-                key={row.id}
-                className="grid items-center gap-3"
-                style={boardGridStyle}
-              >
-                <SplitFlapText
-                  value={row.time}
-                  length={boardTickers.time}
-                  align="right"
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={
-                    useStationAbbreviations
-                      ? row.originAbbreviated
-                      : row.originFull
-                  }
-                  length={boardTickers.origin}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={
-                    useStationAbbreviations
-                      ? row.destinationAbbreviated
-                      : row.destinationFull
-                  }
-                  length={boardTickers.destination}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.operator}
-                  length={boardTickers.operator}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.platform}
-                  length={boardTickers.platform}
-                  tone="neutral"
-                  cycle={tickerCycle}
-                />
-                <SplitFlapText
-                  value={row.status}
-                  length={boardTickers.status}
-                  tone={row.statusTone}
-                  cycle={tickerCycle}
-                />
-              </div>
-            ))}
-
-            {Array.from({ length: emptyRowCount }).map((_, index) => (
-              <EmptyRow key={`empty-row-${index}`} tickers={boardTickers} />
-            ))}
-          </div>
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-end gap-3">
-        <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-          <span
-            className={[
-              "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-            ].join(" ")}
-          />
-          <span>{refreshing ? "Updating" : "Live"}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClear}
-          disabled={!journeys.length}
-          className="h-8 rounded-[0.45rem] border border-[#0d0e10] bg-[linear-gradient(180deg,#2f3136,#1e2023)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)] disabled:cursor-not-allowed disabled:text-[rgba(247,244,238,0.28)]"
-        >
-          Clear board
-        </button>
       </div>
     </section>
   );
