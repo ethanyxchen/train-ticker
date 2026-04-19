@@ -47,13 +47,6 @@ interface BoardRow {
   statusTone: JourneySnapshotTone;
 }
 
-interface BoardIssue {
-  id: string;
-  headline: string;
-  subheadline: string;
-  tone: JourneySnapshotTone;
-}
-
 type BoardColumn = {
   key: keyof BoardTickers;
   label: string;
@@ -237,21 +230,6 @@ function toBoardRows(
     });
 }
 
-function toBoardIssue(
-  snapshot: JourneySnapshot | undefined,
-): BoardIssue | null {
-  if (!snapshot || snapshot.options.length > 0) {
-    return null;
-  }
-
-  return {
-    id: snapshot.journeyId,
-    headline: snapshot.headline,
-    subheadline: snapshot.subheadline,
-    tone: snapshot.status === "error" ? "bad" : "warn",
-  };
-}
-
 function BoardHeader({
   tickers,
   columns,
@@ -355,14 +333,13 @@ export function JourneyBoard({
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = toBoardRows(journey, snapshot);
-  const issue = toBoardIssue(snapshot);
   const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const allAlerts = snapshot?.alerts ?? [];
   const alertCount = allAlerts.length;
-  const issueAlerts = issue ? allAlerts.slice(0, 3) : [];
-  const footerAlerts = issue ? [] : allAlerts.slice(0, 3);
+  const footerAlerts =
+    snapshot && snapshot.options.length > 0 ? allAlerts.slice(0, 3) : [];
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
@@ -423,41 +400,6 @@ export function JourneyBoard({
           className="w-full space-y-3"
           style={compact ? undefined : boardWidthStyle}
         >
-          {issue ? (
-            <div className="space-y-1 px-[0.15rem] text-[0.68rem] uppercase tracking-[0.08em] text-[rgba(247,244,238,0.7)]">
-              <div
-                className={[
-                  "font-medium",
-                  issue.tone === "bad"
-                    ? "text-[var(--bad)]"
-                    : issue.tone === "good"
-                      ? "text-[var(--good)]"
-                      : "text-[var(--warn)]",
-                ].join(" ")}
-              >
-                {issue.headline}
-              </div>
-              {issue.subheadline ? <div>{issue.subheadline}</div> : null}
-              {issueAlerts.length > 0 ? (
-                <div className="space-y-2 pt-2 text-[0.78rem] normal-case tracking-normal text-[rgba(247,244,238,0.78)]">
-                  {issueAlerts.map((alert, index) => (
-                    <div
-                      key={`${snapshot?.journeyId ?? journey.id}-issue-alert-${index}`}
-                      className="rounded-[0.55rem] border border-[#2b2d30] bg-[rgba(15,16,18,0.42)] px-3 py-2"
-                    >
-                      {alert}
-                    </div>
-                  ))}
-                  {alertCount > issueAlerts.length ? (
-                    <div className="px-1 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-                      +{alertCount - issueAlerts.length} more alerts
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
           {compact ? (
             <>
               <div className="space-y-2">
