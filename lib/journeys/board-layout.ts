@@ -35,6 +35,14 @@ export function getBoardWidthRem(tickers: BoardTickers, gapRem: number) {
   );
 }
 
+export function shouldUseCompactBoardLayout(
+  availableRem: number,
+  tickers: BoardTickers,
+  gapRem: number,
+) {
+  return availableRem < getBoardWidthRem(tickers, gapRem);
+}
+
 export function resolveBoardLayout({
   availableRem,
   baseTickers,
