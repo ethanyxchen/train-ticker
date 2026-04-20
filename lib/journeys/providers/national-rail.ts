@@ -75,7 +75,6 @@ type RailConnection = {
   authType: RailProxyAuthType;
   proxyUrl: string;
   consumerKey: string;
-  consumerSecret?: string;
 };
 
 interface RailBoardLoadResult {
@@ -86,7 +85,6 @@ interface RailBoardLoadResult {
 function getRailConnection(): RailConnection | null {
   const proxyUrl = normalizeEnvValue(process.env.DARWIN_RDM_PROXY_URL);
   const consumerKey = normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_KEY);
-  const consumerSecret = normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_SECRET);
   const authType =
     normalizeEnvValue(process.env.DARWIN_RDM_AUTH_TYPE)?.toLowerCase() === "bearer"
       ? "bearer"
@@ -98,7 +96,6 @@ function getRailConnection(): RailConnection | null {
       authType,
       proxyUrl,
       consumerKey,
-      consumerSecret: consumerSecret ?? undefined,
     };
   }
 
@@ -117,20 +114,11 @@ function buildRailHeaders(connection: RailConnection): Record<string, string> {
 
 function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
   const hasProxyKey = Boolean(normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_KEY));
-  const hasProxySecret = Boolean(
-    normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_SECRET),
-  );
   const missingProxyUrl = hasProxyKey && !normalizeEnvValue(process.env.DARWIN_RDM_PROXY_URL);
   const subheadline = missingProxyUrl
     ? "Add DARWIN_RDM_PROXY_URL from the Rail Data Marketplace Specification tab."
     : "Add DARWIN_RDM_PROXY_URL and DARWIN_RDM_CONSUMER_KEY to enable live National Rail departures.";
   const alerts = ["National Rail live boards use the Rail Data Marketplace proxy URL and consumer key."];
-
-  if (hasProxySecret) {
-    alerts.push(
-      "The consumer secret is stored for compatibility but is not sent for the current Darwin API-key flow.",
-    );
-  }
 
   return {
     journeyId: journey.id,

@@ -15,7 +15,6 @@ Add the values you need in `.env.local`.
 
 - `DARWIN_RDM_PROXY_URL` and `DARWIN_RDM_CONSUMER_KEY` enable live National Rail departures.
 - `DARWIN_RDM_AUTH_TYPE=api-key` is the default Rail Data Marketplace proxy mode.
-- `DARWIN_RDM_CONSUMER_SECRET` is only needed for bearer-style Darwin setups.
 - `RDG_DISRUPTIONS_BASE_URL` and `RDG_DISRUPTIONS_CONSUMER_KEY` enable disruption-aware National Rail alerts and empty states through the Rail Data Marketplace disruptions API.
 - `RDG_DISRUPTIONS_USER_AGENT` is optional and defaults to `TrainTicker/0.1`.
 - `TFL_APP_ID` and `TFL_APP_KEY` are optional, but recommended for higher TfL rate limits.
