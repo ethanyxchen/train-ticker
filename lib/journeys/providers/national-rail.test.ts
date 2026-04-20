@@ -21,11 +21,14 @@ const RAIL_ENV_KEYS = [
   "DARWIN_RDM_PROXY_URL",
   "DARWIN_RDM_CONSUMER_KEY",
   "RDG_DISRUPTIONS_BASE_URL",
-  "RDG_DISRUPTIONS_AUTH_TOKEN",
-  "RDG_DISRUPTIONS_CLIENT_ID",
-  "RDG_DISRUPTIONS_CLIENT_SECRET",
+  "RDG_DISRUPTIONS_CONSUMER_KEY",
   "RDG_DISRUPTIONS_USER_AGENT",
 ] as const;
+
+type MockRailRequest = {
+  url: string;
+  headers: Record<string, string>;
+};
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -38,13 +41,13 @@ function jsonResponse(body: unknown) {
 
 async function withMockedRailEnvironment(
   env: Partial<Record<(typeof RAIL_ENV_KEYS)[number], string>>,
-  run: (requestUrls: string[]) => Promise<void>,
+  run: (requests: MockRailRequest[]) => Promise<void>,
 ) {
   const originalFetch = globalThis.fetch;
   const originalEnv = Object.fromEntries(
     RAIL_ENV_KEYS.map((key) => [key, process.env[key]]),
   ) as Partial<Record<(typeof RAIL_ENV_KEYS)[number], string | undefined>>;
-  const requestUrls: string[] = [];
+  const requests: MockRailRequest[] = [];
 
   process.env.DARWIN_RDM_PROXY_URL = "https://example.com/GetDepBoardWithDetails/{crs}";
   process.env.DARWIN_RDM_CONSUMER_KEY = "test-key";
@@ -64,15 +67,15 @@ async function withMockedRailEnvironment(
     process.env[key] = value;
   }
 
-  globalThis.fetch = (async (input) => {
-    const requestUrl = String(input);
-    requestUrls.push(requestUrl);
+  globalThis.fetch = (async (input, init) => {
+    const request = toMockRailRequest(input, init);
+    requests.push(request);
 
-    return resolveRequest(requestUrl);
+    return resolveRequest(request.url);
   }) as typeof fetch;
 
   try {
-    await run(requestUrls);
+    await run(requests);
   } finally {
     globalThis.fetch = originalFetch;
 
@@ -86,6 +89,20 @@ async function withMockedRailEnvironment(
       }
     }
   }
+}
+
+function toMockRailRequest(input: RequestInfo | URL, init?: RequestInit): MockRailRequest {
+  const request = input instanceof Request ? input : null;
+  const headers = new Headers(request?.headers);
+
+  new Headers(init?.headers).forEach((value, key) => {
+    headers.set(key, value);
+  });
+
+  return {
+    url: request?.url ?? String(input),
+    headers: Object.fromEntries(headers.entries()),
+  };
 }
 
 function resolveRequest(requestUrl: string): Response {
@@ -382,10 +399,10 @@ test(
   "merges terminating and stop-only services for mixed Bedford boards",
   { concurrency: false },
   async () => {
-  await withMockedRailEnvironment({}, async (requestUrls) => {
+  await withMockedRailEnvironment({}, async (requests) => {
     const snapshot = await nationalRailProvider.getSnapshot(STP_TO_BEDFORD);
 
-    assert.equal(requestUrls.length, 2);
+    assert.equal(requests.length, 2);
     assert.equal(snapshot.options[0]?.operator, "East Midlands Railway");
     assert.equal(snapshot.options[0]?.scheduledDeparture, "10:05");
     assert.equal(snapshot.options[0]?.scheduledArrival, "10:35");
@@ -403,12 +420,13 @@ test(
   await withMockedRailEnvironment(
     {
       RDG_DISRUPTIONS_BASE_URL: "https://disruptions.example.com/api/v2",
-      RDG_DISRUPTIONS_AUTH_TOKEN: "test-token",
-      RDG_DISRUPTIONS_CLIENT_ID: "client-id",
-      RDG_DISRUPTIONS_CLIENT_SECRET: "client-secret",
+      RDG_DISRUPTIONS_CONSUMER_KEY: "disruptions-key",
     },
-    async (requestUrls) => {
+    async (requests) => {
       const snapshot = await nationalRailProvider.getSnapshot(STP_TO_BEDFORD);
+      const disruptionsRequest = requests.find(
+        (request) => new URL(request.url).pathname === "/api/v2/stations/disruptions",
+      );
 
       assert.equal(snapshot.status, "ok");
       assert.equal(snapshot.headline, "Next matching service on time");
@@ -422,15 +440,20 @@ test(
         snapshot.alerts.join(" "),
         /Thameslink: Minor delays across the Bedford corridor/,
       );
+      assert.equal(disruptionsRequest?.headers["x-apikey"], "disruptions-key");
+      assert.equal(disruptionsRequest?.headers.authorization, undefined);
+      assert.equal(disruptionsRequest?.headers.client_id, undefined);
+      assert.equal(disruptionsRequest?.headers.client_secret, undefined);
+      assert.equal(disruptionsRequest?.headers["user-agent"], "TrainTicker/0.1");
       assert.equal(
-        requestUrls.filter((requestUrl) =>
-          requestUrl.includes("/api/v2/stations/disruptions"),
+        requests.filter((request) =>
+          request.url.includes("/api/v2/stations/disruptions"),
         ).length,
         1,
       );
       assert.equal(
-        requestUrls.filter((requestUrl) =>
-          requestUrl.includes("/api/v2/tocs/TL/serviceIndicators"),
+        requests.filter((request) =>
+          request.url.includes("/api/v2/tocs/TL/serviceIndicators"),
         ).length,
         1,
       );
@@ -448,15 +471,13 @@ test(
       DARWIN_RDM_PROXY_URL: "https://example.com/GetDepBoardWithDetails/{crs}",
       DARWIN_RDM_CONSUMER_KEY: "test-key",
       RDG_DISRUPTIONS_BASE_URL: "https://disruptions.example.com/api/v2",
-      RDG_DISRUPTIONS_AUTH_TOKEN: "test-token",
-      RDG_DISRUPTIONS_CLIENT_ID: "client-id",
-      RDG_DISRUPTIONS_CLIENT_SECRET: "client-secret",
+      RDG_DISRUPTIONS_CONSUMER_KEY: "disruptions-key",
     },
-    async (requestUrls) => {
-      globalThis.fetch = (async (input) => {
-        const requestUrl = String(input);
-        requestUrls.push(requestUrl);
-        const url = new URL(requestUrl);
+    async (requests) => {
+      globalThis.fetch = (async (input, init) => {
+        const request = toMockRailRequest(input, init);
+        requests.push(request);
+        const url = new URL(request.url);
 
         if (url.hostname === "example.com") {
           return jsonResponse({
@@ -494,13 +515,13 @@ test(
         /Thameslink: Minor delays across the Bedford corridor/,
       );
       assert.ok(
-        requestUrls.some((requestUrl) =>
-          requestUrl.includes("/api/v2/stations/disruptions/incidents"),
+        requests.some((request) =>
+          request.url.includes("/api/v2/stations/disruptions/incidents"),
         ),
       );
       assert.ok(
-        requestUrls.some((requestUrl) =>
-          requestUrl.includes("/api/v2/stations/disruptions/stationMessages"),
+        requests.some((request) =>
+          request.url.includes("/api/v2/stations/disruptions/stationMessages"),
         ),
       );
     },

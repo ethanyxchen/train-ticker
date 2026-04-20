@@ -13,9 +13,7 @@ import type {
 
 interface RailDisruptionsConnection {
   baseUrl: string;
-  authToken: string;
-  clientId: string;
-  clientSecret: string;
+  consumerKey: string;
   userAgent: string;
 }
 
@@ -140,21 +138,17 @@ function normalizeDisruptionsBaseUrl(url: string): string {
 
 function getRailDisruptionsConnection(): RailDisruptionsConnection | null {
   const baseUrl = normalizeEnvValue(process.env.RDG_DISRUPTIONS_BASE_URL);
-  const authToken = normalizeEnvValue(process.env.RDG_DISRUPTIONS_AUTH_TOKEN);
-  const clientId = normalizeEnvValue(process.env.RDG_DISRUPTIONS_CLIENT_ID);
-  const clientSecret = normalizeEnvValue(process.env.RDG_DISRUPTIONS_CLIENT_SECRET);
+  const consumerKey = normalizeEnvValue(process.env.RDG_DISRUPTIONS_CONSUMER_KEY);
   const userAgent =
     normalizeEnvValue(process.env.RDG_DISRUPTIONS_USER_AGENT) ?? DEFAULT_USER_AGENT;
 
-  if (!baseUrl || !authToken || !clientId || !clientSecret) {
+  if (!baseUrl || !consumerKey) {
     return null;
   }
 
   return {
     baseUrl: normalizeDisruptionsBaseUrl(baseUrl),
-    authToken,
-    clientId,
-    clientSecret,
+    consumerKey,
     userAgent,
   };
 }
@@ -162,14 +156,8 @@ function getRailDisruptionsConnection(): RailDisruptionsConnection | null {
 function buildDisruptionsHeaders(
   connection: RailDisruptionsConnection,
 ): Record<string, string> {
-  const authorization = /^bearer\s+/i.test(connection.authToken)
-    ? connection.authToken
-    : `Bearer ${connection.authToken}`;
-
   return {
-    Authorization: authorization,
-    client_id: connection.clientId,
-    client_secret: connection.clientSecret,
+    "x-apikey": connection.consumerKey,
     "User-Agent": connection.userAgent,
     "Accept-Encoding": "gzip",
   };
