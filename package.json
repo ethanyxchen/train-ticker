@@ -13,6 +13,7 @@
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-split-flap": "^0.1.7",
     "uk-railway-stations": "^1.8.4"
   },
   "devDependencies": {

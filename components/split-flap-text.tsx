@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { SplitFlap } from "react-split-flap";
 
 import {
   SPLIT_FLAP_CELL,
@@ -14,9 +9,9 @@ import {
   getSplitFlapWidthRem,
 } from "@/lib/journeys/split-flap-metrics";
 import {
-  getSplitFlapSequence,
-  normalizeSplitFlapCharacter,
-} from "@/lib/journeys/split-flap-sequence";
+  SPLIT_FLAP_CHARACTERS,
+  getPaddedSplitFlapValue,
+} from "@/lib/journeys/split-flap-display";
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
 
 export { SPLIT_FLAP_CELL, getSplitFlapWidth, getSplitFlapWidthRem };
@@ -31,43 +26,61 @@ interface SplitFlapTextProps {
   switchable?: boolean;
 }
 
-const splitFlapStyle = {
-  gap: `${SPLIT_FLAP_CELL.gapRem}rem`,
-} satisfies CSSProperties;
-
-const splitFlapCellStyle = {
-  width: `${SPLIT_FLAP_CELL.widthRem}rem`,
-  height: `${SPLIT_FLAP_CELL.heightRem}rem`,
-  borderRadius: `${SPLIT_FLAP_CELL.radiusRem}rem`,
-  paddingInline: `${SPLIT_FLAP_CELL.paddingInlineRem}rem`,
-  fontSize: `${SPLIT_FLAP_CELL.fontSizeRem}rem`,
-} satisfies CSSProperties;
-
-type SplitFlapTrackStyle = CSSProperties & {
-  "--split-flap-frame-count": number;
+type SplitFlapStyle = CSSProperties & {
+  "--train-ticker-flap-gap": string;
+  "--train-ticker-flap-width": string;
+  "--train-ticker-flap-height": string;
+  "--train-ticker-flap-radius": string;
+  "--train-ticker-flap-padding-inline": string;
 };
 
-function getSplitFlapTrackStyle(
-  index: number,
-  frameCount: number,
-): SplitFlapTrackStyle {
-  const stepCount = Math.max(frameCount - 1, 1);
+const splitFlapStyle = {
+  fontSize: `${SPLIT_FLAP_CELL.fontSizeRem}rem`,
+  "--train-ticker-flap-gap": `${SPLIT_FLAP_CELL.gapRem}rem`,
+  "--train-ticker-flap-width": `${SPLIT_FLAP_CELL.widthRem}rem`,
+  "--train-ticker-flap-height": `${SPLIT_FLAP_CELL.heightRem}rem`,
+  "--train-ticker-flap-radius": `${SPLIT_FLAP_CELL.radiusRem}rem`,
+  "--train-ticker-flap-padding-inline": `${SPLIT_FLAP_CELL.paddingInlineRem}rem`,
+} satisfies SplitFlapStyle;
 
-  return {
-    animationDelay: `${index * 18}ms`,
-    animationDuration: `${Math.max(stepCount * 28, 180)}ms`,
-    animationTimingFunction: `steps(${stepCount}, end)`,
-    height: `${frameCount * 100}%`,
-    "--split-flap-frame-count": frameCount,
-  };
+const toneColors: Record<JourneySnapshotTone, string> = {
+  neutral: "var(--board-text)",
+  good: "var(--good)",
+  warn: "var(--warn)",
+  bad: "var(--bad)",
+};
+
+function getReplayLabel(value: string) {
+  const trimmed = value.trim();
+
+  return trimmed ? trimmed : "blank";
 }
 
-const toneClasses: Record<JourneySnapshotTone, string> = {
-  neutral: "text-[var(--board-text)]",
-  good: "text-[var(--good)]",
-  warn: "text-[var(--warn)]",
-  bad: "text-[var(--bad)]",
-};
+function renderHost(
+  children: ReactNode,
+  switchable: boolean,
+  value: string,
+  onReplay: () => void,
+) {
+  const className = switchable
+    ? "inline-flex max-w-full cursor-pointer flex-nowrap overflow-hidden rounded-[0.18rem] border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
+    : "inline-flex max-w-full flex-nowrap overflow-hidden";
+
+  if (!switchable) {
+    return <span className={className}>{children}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`Replay split flap ${getReplayLabel(value)}`}
+      onClick={onReplay}
+      className={className}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function SplitFlapText({
   value,
@@ -75,173 +88,33 @@ export function SplitFlapText({
   align = "left",
   tone = "neutral",
   cycle,
-  animateOnMount = false,
   switchable = true,
 }: SplitFlapTextProps) {
-  const sanitized = value.toUpperCase().replace(/\s+/g, " ").slice(0, length);
-  const padded = Array.from(
-    (
-      align === "right"
-        ? sanitized.padStart(length, " ")
-        : sanitized.padEnd(length, " ")
-    ),
-    normalizeSplitFlapCharacter,
-  ).join("");
-  const initialPadded = animateOnMount ? " ".repeat(length) : padded;
-  const displayedPaddedRef = useRef(padded);
-  const cycleRef = useRef(cycle);
-  const [startPadded, setStartPadded] = useState(initialPadded);
-  const [switchState, setSwitchState] = useState(() => ({
-    runs: Array.from({ length }, () => 0),
-    forcedCycleRuns: Array.from({ length }, () => -1),
-  }));
-
-  function switchTicker(index: number) {
-    setStartPadded(displayedPaddedRef.current);
-    setSwitchState((currentSwitchState) => ({
-      runs: Array.from(
-        { length },
-        (_, currentIndex) =>
-          (currentSwitchState.runs[currentIndex] ?? 0) +
-          (currentIndex === index ? 1 : 0),
-      ),
-      forcedCycleRuns: Array.from({ length }, (_, currentIndex) =>
-        currentIndex === index
-          ? (currentSwitchState.runs[currentIndex] ?? 0) + 1
-          : (currentSwitchState.forcedCycleRuns[currentIndex] ?? -1),
-      ),
-    }));
-  }
-
-  useLayoutEffect(() => {
-    if (displayedPaddedRef.current === padded) {
-      return;
-    }
-
-    const previousPadded = displayedPaddedRef.current;
-
-    setStartPadded(previousPadded);
-    displayedPaddedRef.current = padded;
-    setSwitchState((currentSwitchState) => ({
-      runs: Array.from(
-        { length },
-        (_, index) =>
-          (currentSwitchState.runs[index] ?? 0) +
-          (previousPadded[index] === padded[index] ? 0 : 1),
-      ),
-      forcedCycleRuns: Array.from(
-        { length },
-        (_, index) =>
-          previousPadded[index] === padded[index]
-            ? (currentSwitchState.forcedCycleRuns[index] ?? -1)
-            : -1,
-      ),
-    }));
-  }, [length, padded]);
-
-  useEffect(() => {
-    if (cycleRef.current === cycle) {
-      return;
-    }
-
-    cycleRef.current = cycle;
-
-    if (!switchable) {
-      return;
-    }
-
-    setStartPadded(displayedPaddedRef.current);
-    setSwitchState((currentSwitchState) => ({
-      runs: Array.from(
-        { length },
-        (_, index) => (currentSwitchState.runs[index] ?? 0) + 1,
-      ),
-      forcedCycleRuns: Array.from(
-        { length },
-        (_, index) => (currentSwitchState.runs[index] ?? 0) + 1,
-      ),
-    }));
-  }, [cycle, length, switchable]);
-
-  const characters = padded.split("");
-  const startCharacters = (switchable ? startPadded : padded).split("");
-  const content = characters.map((character, index) => {
-    const currentSwitchRun = switchState.runs[index] ?? 0;
-    const startCharacter = startCharacters[index] ?? " ";
-    const forceFullCycle =
-      (switchState.forcedCycleRuns[index] ?? -1) === currentSwitchRun;
-    const shouldAnimate =
-      switchable && (startCharacter !== character || forceFullCycle);
-    const sequence = shouldAnimate
-      ? getSplitFlapSequence(startCharacter, character, {
-          forceFullCycle,
-        })
-      : [character];
-    const frameStyle = {
-      height: `${100 / sequence.length}%`,
-    } satisfies CSSProperties;
-    const visibleCharacter = character === " " ? "\u00A0" : character;
-    const cellClassName = [
-      "relative isolate inline-flex shrink-0 overflow-hidden border border-[#0d0e10] bg-[linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))] font-mono font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_16px_rgba(0,0,0,0.22)]",
-      "before:absolute before:inset-x-0 before:top-1/2 before:z-20 before:h-px before:-translate-y-1/2 before:bg-[var(--board-divider)]",
-      switchable
-        ? "cursor-pointer p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
-        : "",
-      toneClasses[tone],
-    ].join(" ");
-    const track = shouldAnimate ? (
-      <span
-        className="split-flap-track absolute inset-x-0 top-0 flex flex-col"
-        style={getSplitFlapTrackStyle(index, sequence.length)}
-      >
-        {sequence.map((sequenceCharacter, sequenceIndex) => (
-          <span
-            key={`${currentSwitchRun}-${sequenceIndex}-${sequenceCharacter}`}
-            className="flex items-center justify-center"
-            style={frameStyle}
-          >
-            {sequenceCharacter === " " ? "\u00A0" : sequenceCharacter}
-          </span>
-        ))}
-      </span>
-    ) : (
-      <span className="absolute inset-0 flex items-center justify-center">
-        {visibleCharacter}
-      </span>
-    );
-
-    if (!switchable) {
-      return (
-        <span
-          key={`${currentSwitchRun}-${index}`}
-          className={cellClassName}
-          style={splitFlapCellStyle}
-        >
-          {track}
-        </span>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        aria-label={`Switch ticker cell ${index + 1} ${
-          character.trim() || "blank"
-        }`}
-        onClick={() => switchTicker(index)}
-        key={`${currentSwitchRun}-${index}`}
-        className={cellClassName}
-        style={splitFlapCellStyle}
-      >
-        {track}
-      </button>
-    );
-  });
-  const className = "inline-flex max-w-full flex-nowrap overflow-hidden";
+  const paddedValue = getPaddedSplitFlapValue(value, length, align);
+  const [manualReplayVersion, setManualReplayVersion] = useState(0);
+  const replayKey = `${manualReplayVersion}:${switchable && cycle !== undefined ? cycle : "static"}`;
 
   return (
-    <div className={className} style={splitFlapStyle}>
-      {content}
-    </div>
+    <SplitFlap
+      key={replayKey}
+      value={paddedValue}
+      length={length}
+      chars={[...SPLIT_FLAP_CHARACTERS]}
+      padChar=" "
+      padMode={align === "right" ? "start" : "end"}
+      timing={28}
+      hinge
+      className="train-ticker-split-flap"
+      style={splitFlapStyle}
+      background="linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))"
+      fontColor={toneColors[tone]}
+      render={(children) =>
+        renderHost(children, switchable, paddedValue, () =>
+          setManualReplayVersion(
+            (currentManualReplayVersion) => currentManualReplayVersion + 1,
+          ),
+        )
+      }
+    />
   );
 }
