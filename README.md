@@ -5,7 +5,8 @@ Minimal setup to run the site locally.
 ## Install
 
 ```bash
-npm install
+mise install
+mise run install
 cp .env.example .env.local
 ```
 
@@ -28,7 +29,7 @@ RDG Disruptions responses are cached in-memory for 5 minutes per journey/operato
 ## Development
 
 ```bash
-npm run dev
+mise run dev
 ```
 
 Open `http://localhost:3000`.
@@ -36,6 +37,6 @@ Open `http://localhost:3000`.
 ## Production
 
 ```bash
-npm run build
-npm run start
+mise run build
+mise run start
 ```

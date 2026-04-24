@@ -9,7 +9,7 @@ export type InlineHtmlSegment =
       label: string;
     };
 
-const ANCHOR_TAG_PATTERN = /<a\b[^>]*href=(["'])(.*?)\1[^>]*>(.*?)<\/a>/gis;
+const ANCHOR_TAG_PATTERN = /<a\b[^>]*href=(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
 
 function decodeHtmlEntities(value: string): string {
   return value

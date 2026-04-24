@@ -34,3 +34,21 @@ test("falls back to plain text for unsafe links", () => {
     ],
   );
 });
+
+test("parses inline links that span multiple lines", () => {
+  assert.deepEqual(
+    parseInlineHtml(
+      `<a href="https://www.nationalrail.co.uk/service-disruptions/new-barnet-20260419/">
+        Status and
+        Disruptions.
+      </a>`,
+    ),
+    [
+      {
+        type: "link",
+        href: "https://www.nationalrail.co.uk/service-disruptions/new-barnet-20260419/",
+        label: "Status and Disruptions.",
+      },
+    ],
+  );
+});

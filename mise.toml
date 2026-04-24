@@ -1,0 +1,34 @@
+[tools]
+node = "24.15.0"
+gcloud = "latest"
+
+[tasks.install]
+description = "Install project dependencies"
+run = "npm ci"
+sources = ["package.json", "package-lock.json"]
+outputs = ["node_modules/.package-lock.json"]
+
+[tasks.dev]
+description = "Start the development server"
+depends = ["install"]
+run = "npm run dev"
+
+[tasks.lint]
+description = "Run the linter"
+depends = ["install"]
+run = "npm run lint"
+
+[tasks.test]
+description = "Run the test suite"
+depends = ["install"]
+run = "npm test"
+
+[tasks.build]
+description = "Build the app"
+depends = ["install"]
+run = "npm run build"
+
+[tasks.start]
+description = "Start the production server"
+depends = ["install"]
+run = "npm run start"
