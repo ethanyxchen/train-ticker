@@ -22,6 +22,8 @@ Add the values you need in `.env.local`.
 
 The site still starts without credentials. National Rail cards stay unconfigured until Darwin is set, disruption enrichment stays off until the separate RDG Disruptions credentials are set, and Tube requests can run without TfL keys.
 
+- `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET` is optional and used by the daily schedule cleanup command if you do not pass `--bucket`.
+
 ## Rail Disruptions Cache
 
 RDG Disruptions responses are cached in-memory for 5 minutes per journey/operator combination. This keeps journey refreshes responsive while staying inside the RSPS5220 rule that disruption content must be refreshed or discarded within 1 hour.
@@ -40,3 +42,24 @@ Open `http://localhost:3000`.
 mise run build
 mise run start
 ```
+
+## Daily Schedule Cleanup
+
+The bucket cleanup command keeps only the newest batch in `PPTimetable/` and the newest file in `EHSnapshot/`. It ignores unrelated bucket objects.
+
+Dry run against the production bucket:
+
+```bash
+gcloud auth application-default login
+npm run cleanup:daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --dry-run
+```
+
+Apply the cleanup:
+
+```bash
+npm run cleanup:daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --apply
+```
+
+If you set `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET`, you can omit `--bucket`.
+
+The recommended hosted schedule is `03:05 GMT`, based on the observed `PPTimetable` batch timestamp of about `02:05 GMT`.
