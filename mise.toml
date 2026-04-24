@@ -32,3 +32,23 @@ run = "npm run build"
 description = "Start the production server"
 depends = ["install"]
 run = "npm run start"
+
+[tasks.worker-typecheck]
+description = "Typecheck the daily schedule cleanup worker"
+depends = ["install"]
+run = "npm --prefix workers/daily-schedule-cleanup run typecheck"
+
+[tasks.worker-test]
+description = "Run the daily schedule cleanup worker tests"
+depends = ["install"]
+run = "npm --prefix workers/daily-schedule-cleanup test"
+
+[tasks.worker-build]
+description = "Build the daily schedule cleanup worker"
+depends = ["install"]
+run = "npm --prefix workers/daily-schedule-cleanup run build"
+
+[tasks.cleanup-daily-schedule]
+description = "Run the daily schedule cleanup worker"
+depends = ["install"]
+run = 'npm --prefix workers/daily-schedule-cleanup run cleanup:daily-schedule:dev -- "$@"'

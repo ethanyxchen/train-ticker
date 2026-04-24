@@ -50,22 +50,22 @@ The bucket cleanup worker lives in `workers/daily-schedule-cleanup`. It keeps on
 Validate the worker locally:
 
 ```bash
-npm run typecheck:worker
-npm run test:worker
-npm run build:worker
+mise run worker-typecheck
+mise run worker-test
+mise run worker-build
 ```
 
 Dry run against the production bucket:
 
 ```bash
-gcloud auth application-default login
-npm run cleanup:daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --dry-run
+mise exec -- gcloud auth application-default login
+mise run cleanup-daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --dry-run
 ```
 
 Apply the cleanup:
 
 ```bash
-npm run cleanup:daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --apply
+mise run cleanup-daily-schedule -- --bucket train-ticker-daily-train-schedule-inbox --apply
 ```
 
 If you set `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET`, you can omit `--bucket`.
@@ -75,5 +75,5 @@ The recommended hosted schedule is `03:05 GMT`, based on the observed `PPTimetab
 Deploy only the worker source to Cloud Run Jobs:
 
 ```bash
-gcloud run jobs deploy train-ticker-daily-schedule-cleanup --project train-ticker-494309 --region us-central1 --source workers/daily-schedule-cleanup --service-account daily-schedule-cleaner@train-ticker-494309.iam.gserviceaccount.com --set-env-vars "TRAIN_TICKER_DAILY_SCHEDULE_BUCKET=train-ticker-daily-train-schedule-inbox" --command npm --args run,cleanup:daily-schedule,--,--apply --tasks 1 --max-retries 0 --task-timeout 10m
+mise exec -- gcloud run jobs deploy train-ticker-daily-schedule-cleanup --project train-ticker-494309 --region us-central1 --source workers/daily-schedule-cleanup --service-account daily-schedule-cleaner@train-ticker-494309.iam.gserviceaccount.com --set-env-vars "TRAIN_TICKER_DAILY_SCHEDULE_BUCKET=train-ticker-daily-train-schedule-inbox" --command npm --args run,cleanup:daily-schedule,--,--apply --tasks 1 --max-retries 0 --task-timeout 10m
 ```
