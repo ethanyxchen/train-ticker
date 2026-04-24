@@ -528,3 +528,55 @@ test(
   );
   },
 );
+
+test(
+  "merges scheduled timetable options when live departures are empty",
+  { concurrency: false },
+  async () => {
+    await withMockedRailEnvironment(
+      {
+        DARWIN_RDM_PROXY_URL: "https://example.com/GetDepBoardWithDetails/{crs}",
+        DARWIN_RDM_CONSUMER_KEY: "test-key",
+      },
+      async (requests) => {
+        globalThis.fetch = (async (input, init) => {
+          const request = toMockRailRequest(input, init);
+          requests.push(request);
+          const url = new URL(request.url);
+
+          if (url.hostname === "example.com") {
+            return jsonResponse({
+              generatedAt: "2026-04-19T09:55:00Z",
+              locationName: "London St Pancras International",
+              trainServices: [],
+            });
+          }
+
+          return resolveDisruptionsRequest(url);
+        }) as typeof fetch;
+
+        const snapshot = await nationalRailProvider.getSnapshot(STP_TO_BEDFORD, {
+          timeWindowHours: 1,
+          scheduledOptions: [
+            {
+              id: "sched-1",
+              title: "Bedford",
+              scheduledDeparture: "10:12",
+              scheduledArrival: "10:54",
+              expectedDeparture: "10:12",
+              expectedArrival: "10:54",
+              operatorCode: "TL",
+              platform: "4",
+            },
+          ],
+        });
+
+        assert.equal(snapshot.options.length, 1);
+        assert.equal(snapshot.options[0]?.id, "sched-1");
+        assert.equal(snapshot.options[0]?.scheduledDeparture, "10:12");
+        assert.equal(snapshot.headline, "Scheduled departures loaded");
+        assert.match(snapshot.alerts.join(" "), /next 1 hour/);
+      },
+    );
+  },
+);

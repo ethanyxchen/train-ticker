@@ -19,10 +19,12 @@ Add the values you need in `.env.local`.
 - `RDG_DISRUPTIONS_BASE_URL` and `RDG_DISRUPTIONS_CONSUMER_KEY` enable disruption-aware National Rail alerts and empty states through the Rail Data Marketplace disruptions API.
 - `RDG_DISRUPTIONS_USER_AGENT` is optional and defaults to `TrainTicker/0.1`.
 - `TFL_APP_ID` and `TFL_APP_KEY` are optional, but recommended for higher TfL rate limits.
+- `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET` enables timetable schedule lookup from Google Cloud Storage for National Rail journeys.
+- `TRAIN_TICKER_DAILY_SCHEDULE_PREFIX` is optional and defaults to `PPTimetable/`.
 
 The site still starts without credentials. National Rail cards stay unconfigured until Darwin is set, disruption enrichment stays off until the separate RDG Disruptions credentials are set, and Tube requests can run without TfL keys.
 
-- `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET` is optional and used by the daily schedule cleanup worker if you do not pass `--bucket`.
+When the timetable bucket is configured, every journey refresh fetches the latest retained timetable run, merges scheduled departures with live Darwin rows, and defaults to a one-hour departure window. The board control can extend that window by one hour up to six hours.
 
 ## Rail Disruptions Cache
 

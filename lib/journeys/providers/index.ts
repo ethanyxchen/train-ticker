@@ -1,5 +1,8 @@
 import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
-import type { JourneyProvider } from "@/lib/journeys/providers/base";
+import type {
+  JourneyProvider,
+  JourneySnapshotContext,
+} from "@/lib/journeys/providers/base";
 import { nationalRailProvider } from "@/lib/journeys/providers/national-rail";
 import { tflTubeProvider } from "@/lib/journeys/providers/tfl";
 
@@ -20,10 +23,11 @@ export function getJourneyProvider(providerId: string): JourneyProvider {
 
 export async function loadJourneySnapshot(
   journey: SavedJourney,
+  context?: JourneySnapshotContext,
 ): Promise<JourneySnapshot> {
   try {
     const provider = getJourneyProvider(journey.provider);
-    return await provider.getSnapshot(journey);
+    return await provider.getSnapshot(journey, context);
   } catch (error) {
     return {
       journeyId: journey.id,

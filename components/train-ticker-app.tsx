@@ -42,6 +42,7 @@ export function TrainTickerApp() {
   const [journeys, setJourneys] = useState<SavedJourney[]>([]);
   const [snapshots, setSnapshots] = useState<Record<string, JourneySnapshot>>({});
   const [introCycles, setIntroCycles] = useState<Record<string, number>>({});
+  const [timeWindowHours, setTimeWindowHours] = useState(1);
   const [hydrated, setHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +92,10 @@ export function TrainTickerApp() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ journeys: currentJourneys }),
+          body: JSON.stringify({
+            journeys: currentJourneys,
+            timeWindowHours,
+          }),
         });
 
         if (!response.ok) {
@@ -112,7 +116,7 @@ export function TrainTickerApp() {
         setRefreshing(false);
       }
     },
-    [journeys],
+    [journeys, timeWindowHours],
   );
 
   useEffect(() => {
@@ -197,6 +201,24 @@ export function TrainTickerApp() {
       {error ? (
         <div className="mx-auto w-full max-w-[1100px] px-1 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)]">
           {error}
+        </div>
+      ) : null}
+
+      {journeys.length > 0 ? (
+        <div className="mx-auto flex w-full max-w-[1100px] items-center justify-end gap-3 px-1">
+          <div className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(21,22,24,0.62)]">
+            Window: next {timeWindowHours} hour{timeWindowHours === 1 ? "" : "s"}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTimeWindowHours((current) => Math.min(current + 1, 6));
+            }}
+            disabled={timeWindowHours >= 6}
+            className="h-8 rounded-[0.45rem] border border-[rgba(17,18,20,0.2)] bg-[linear-gradient(180deg,#f4efe7,#e2dbcf)] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(21,22,24,0.78)] transition hover:text-[rgba(21,22,24,1)]"
+          >
+            +1 hour
+          </button>
         </div>
       ) : null}
 

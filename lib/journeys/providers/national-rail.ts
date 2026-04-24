@@ -15,6 +15,7 @@ import type {
   JourneySnapshot,
   JourneySnapshotStatus,
   SavedJourney,
+  JourneyOption,
 } from "../types";
 
 interface DarwinMessage {
@@ -425,11 +426,132 @@ function collectMatchingRailServices(
   );
 }
 
+function parseClockToMinutes(value?: string): number | null {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function isServiceWithinWindow(
+  service: DarwinService,
+  now: Date,
+  timeWindowHours: number,
+) {
+  const stdMinutes = parseClockToMinutes(service.std);
+
+  if (stdMinutes === null) {
+    return true;
+  }
+
+  const start = new Date(now);
+  start.setUTCSeconds(0, 0);
+  const departure = new Date(start);
+  departure.setUTCHours(0, 0, 0, 0);
+  departure.setUTCMinutes(stdMinutes);
+
+  if (departure.getTime() < start.getTime()) {
+    departure.setUTCDate(departure.getUTCDate() + 1);
+  }
+
+  const end = new Date(start);
+  end.setTime(start.getTime() + timeWindowHours * 60 * 60 * 1000);
+
+  return departure.getTime() <= end.getTime();
+}
+
+function buildLiveJourneyOption(
+  journey: SavedJourney,
+  service: DarwinService,
+  index: number,
+): JourneyOption {
+  const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
+  const destinationName =
+    findJourneyCallingPoint(service, journey)?.locationName ??
+    service?.destination?.[0]?.locationName ??
+    journey.destination.label;
+  const arrival = getJourneyArrival(service, journey);
+
+  return {
+    id: service?.serviceID ?? `${journey.id}-${index}`,
+    title: destinationName,
+    scheduledDeparture: service?.std,
+    expectedDeparture: service?.etd,
+    scheduledArrival: arrival.scheduled,
+    expectedArrival: arrival.expected,
+    platform: service?.platform,
+    operator: service?.operator,
+    operatorCode: service?.operatorCode,
+    note:
+      callingPoints.length > 0
+        ? `Calling at ${callingPoints
+            .slice(0, 3)
+            .map((callingPoint) => callingPoint.locationName)
+            .filter(Boolean)
+            .join(", ")}`
+        : undefined,
+  };
+}
+
+function getOptionMergeKey(option: JourneyOption): string {
+  return [
+    option.scheduledDeparture ?? "",
+    option.scheduledArrival ?? "",
+    option.operatorCode ?? option.operator ?? "",
+    option.title ?? "",
+  ]
+    .map((value) => value.trim().toUpperCase())
+    .join("|");
+}
+
+function compareOptionTimes(left: JourneyOption, right: JourneyOption): number {
+  return compareRailClockMinutes(
+    parseRailClockMinutes(left.scheduledDeparture ?? left.expectedDeparture),
+    parseRailClockMinutes(right.scheduledDeparture ?? right.expectedDeparture),
+  );
+}
+
+function mergeRailOptions(
+  liveOptions: JourneyOption[],
+  scheduledOptions: JourneyOption[],
+): JourneyOption[] {
+  const scheduledByKey = new Map<string, JourneyOption>();
+
+  for (const option of scheduledOptions) {
+    scheduledByKey.set(getOptionMergeKey(option), option);
+  }
+
+  for (const liveOption of liveOptions) {
+    const key = getOptionMergeKey(liveOption);
+    const scheduledOption = scheduledByKey.get(key);
+
+    if (!scheduledOption) {
+      scheduledByKey.set(key, liveOption);
+      continue;
+    }
+
+    scheduledByKey.set(key, {
+      ...scheduledOption,
+      ...liveOption,
+      scheduledDeparture:
+        liveOption.scheduledDeparture ?? scheduledOption.scheduledDeparture,
+      scheduledArrival: liveOption.scheduledArrival ?? scheduledOption.scheduledArrival,
+    });
+  }
+
+  return Array.from(scheduledByKey.values())
+    .sort(compareOptionTimes)
+    .slice(0, JOURNEY_BOARD_ROW_COUNT);
+}
+
 async function loadRailBoards(
   journey: SavedJourney,
   connection: RailConnection,
   params?: {
     filterDestination?: boolean;
+    timeWindowMinutes?: number;
   },
 ): Promise<DarwinStationBoard[]> {
   const boards: DarwinStationBoard[] = [];
@@ -438,7 +560,7 @@ async function loadRailBoards(
     const requestUrl = buildRailRequestUrl(journey, connection, {
       filterDestination: params?.filterDestination,
       timeOffset,
-      timeWindow: 120,
+      timeWindow: params?.timeWindowMinutes ?? 60,
       numRows: 20,
     });
     const board = await fetchJson<DarwinStationBoard>(requestUrl, {
@@ -461,11 +583,13 @@ async function loadRailBoards(
 async function loadBestRailBoards(
   journey: SavedJourney,
   connection: RailConnection,
+  timeWindowMinutes: number,
 ): Promise<RailBoardLoadResult> {
   const [filteredBoards, unfilteredBoards] = await Promise.all([
-    loadRailBoards(journey, connection),
+    loadRailBoards(journey, connection, { timeWindowMinutes }),
     loadRailBoards(journey, connection, {
       filterDestination: false,
+      timeWindowMinutes,
     }),
   ]);
 
@@ -495,26 +619,37 @@ export const nationalRailProvider: JourneyProvider = {
   async search(query) {
     return searchNationalRailStations(query);
   },
-  async getSnapshot(journey) {
+  async getSnapshot(journey, context) {
     const connection = getRailConnection();
+    const timeWindowHours = Math.min(
+      Math.max(Math.floor(context?.timeWindowHours ?? 1), 1),
+      6,
+    );
+    const timeWindowMinutes = timeWindowHours * 60;
 
     if (!connection) {
       return buildUnconfiguredSnapshot(journey);
     }
 
-    const boardLoadResult = await loadBestRailBoards(journey, connection);
+    const boardLoadResult = await loadBestRailBoards(
+      journey,
+      connection,
+      timeWindowMinutes,
+    );
     const boards = [
       ...boardLoadResult.filteredBoards,
       ...boardLoadResult.unfilteredBoards,
     ];
     const board = boards[0];
+    const boardNow =
+      (board?.generatedAt ? new Date(board.generatedAt) : null) ?? new Date();
+    const effectiveNow = Number.isNaN(boardNow.getTime()) ? new Date() : boardNow;
     const departures = collectMatchingRailServices(
       [boardLoadResult.unfilteredBoards, boardLoadResult.filteredBoards],
       journey,
-    ).slice(
-      0,
-      JOURNEY_BOARD_ROW_COUNT,
-    );
+    )
+      .filter((service) => isServiceWithinWindow(service, effectiveNow, timeWindowHours))
+      .slice(0, JOURNEY_BOARD_ROW_COUNT);
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
     const disruptionContext = await loadRailDisruptionContext(
@@ -527,6 +662,15 @@ export const nationalRailProvider: JourneyProvider = {
       departures.length === 0 && disruptionContext?.fallback
         ? disruptionContext.fallback.status
         : pickRailStatus(firstService, firstArrival);
+
+    const liveOptions = departures.map((service, index) =>
+      buildLiveJourneyOption(journey, service, index),
+    );
+    const mergedOptions = mergeRailOptions(
+      liveOptions,
+      context?.scheduledOptions ?? [],
+    );
+    const mergedFirstOption = mergedOptions[0];
 
     const alerts = dedupeText([
       ...boards.flatMap((currentBoard) =>
@@ -541,6 +685,9 @@ export const nationalRailProvider: JourneyProvider = {
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
       ...(disruptionContext?.alerts ?? []),
+      context?.scheduledOptions?.length
+        ? `Showing departures within next ${timeWindowHours} hour${timeWindowHours === 1 ? "" : "s"}.`
+        : undefined,
     ]);
 
     return {
@@ -550,52 +697,31 @@ export const nationalRailProvider: JourneyProvider = {
       headline:
         departures.length === 0 && disruptionContext?.fallback
           ? disruptionContext.fallback.headline
-          : buildRailHeadline(firstService, firstArrival),
+          : mergedOptions.length > 0 && !firstService
+            ? "Scheduled departures loaded"
+            : buildRailHeadline(firstService, firstArrival),
       subheadline:
         departures.length === 0 && disruptionContext?.fallback
           ? disruptionContext.fallback.subheadline
-          : departures.length > 0
+          : mergedOptions.length > 0
             ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
             : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
       refreshedAt:
         disruptionContext?.refreshedAt ??
         board.generatedAt ??
         new Date().toISOString(),
-      boardFields:
-        departures.length === 0
+      boardFields: !mergedFirstOption
+        ? buildNoServiceRailFields(
+            disruptionContext?.fallback?.liveValue ?? "NO SERVICE",
+            disruptionContext?.fallback?.liveTone ?? "warn",
+          )
+        : departures.length === 0
           ? buildNoServiceRailFields(
-              disruptionContext?.fallback?.liveValue ?? "NO SERVICE",
-              disruptionContext?.fallback?.liveTone ?? "warn",
+              mergedFirstOption.scheduledDeparture ?? "SCHEDULED",
+              "neutral",
             )
           : buildRailFields(firstService, firstArrival),
-      options: departures.map((service, index) => {
-        const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
-        const destinationName =
-          findJourneyCallingPoint(service, journey)?.locationName ??
-          service?.destination?.[0]?.locationName ??
-          journey.destination.label;
-        const arrival = getJourneyArrival(service, journey);
-
-        return {
-          id: service?.serviceID ?? `${journey.id}-${index}`,
-          title: destinationName,
-          scheduledDeparture: service?.std,
-          expectedDeparture: service?.etd,
-          scheduledArrival: arrival.scheduled,
-          expectedArrival: arrival.expected,
-          platform: service?.platform,
-          operator: service?.operator,
-          operatorCode: service?.operatorCode,
-          note:
-            callingPoints.length > 0
-              ? `Calling at ${callingPoints
-                  .slice(0, 3)
-                  .map((callingPoint) => callingPoint.locationName)
-                  .filter(Boolean)
-                  .join(", ")}`
-              : undefined,
-        };
-      }),
+      options: mergedOptions,
       alerts,
     };
   },
