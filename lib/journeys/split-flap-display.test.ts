@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   getPaddedSplitFlapValue,
   normalizeSplitFlapCharacter,
-} from "./split-flap-display.ts";
+} from "./split-flap-display";
 
 test("normalizes unsupported characters to blanks", () => {
   assert.equal(normalizeSplitFlapCharacter("*"), " ");

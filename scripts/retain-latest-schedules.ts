@@ -4,7 +4,7 @@ import {
   retainLatestEHSnapshot,
   retainLatestPPTimetable,
   type RetentionResult,
-} from "../lib/daily-schedule-retention.ts";
+} from "../lib/daily-schedule-retention";
 
 type ManagedPrefix = "EHSnapshot" | "PPTimetable";
 

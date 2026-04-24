@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BASE_BOARD_TICKERS } from "./board-display.ts";
+import { BASE_BOARD_TICKERS } from "./board-display";
 import {
   getBoardWidthRem,
   resolveBoardLayout,
   shouldUseCompactBoardLayout,
-} from "./board-layout.ts";
+} from "./board-layout";
 
 const BASE_TICKERS = BASE_BOARD_TICKERS;
 const GAP_REM = 0.75;

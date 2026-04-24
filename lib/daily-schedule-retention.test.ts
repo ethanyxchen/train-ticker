@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   retainLatestEHSnapshot,
   retainLatestPPTimetable,
-} from "./daily-schedule-retention.ts";
+} from "./daily-schedule-retention";
 
 test("retainLatestPPTimetable keeps the newest batch and deletes older batches", () => {
   const result = retainLatestPPTimetable([

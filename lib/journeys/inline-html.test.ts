@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseInlineHtml } from "./inline-html.ts";
+import { parseInlineHtml } from "./inline-html";
 
 test("parses inline links from alert messages", () => {
   assert.deepEqual(

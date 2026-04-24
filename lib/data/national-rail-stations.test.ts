@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { searchNationalRailStations } from "./national-rail-stations.ts";
+import { searchNationalRailStations } from "./national-rail-stations";
 
 test("returns exact CRS matches first", () => {
   const [result] = searchNationalRailStations("STP");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRailRequestUrl } from "./national-rail-request.ts";
+import { buildRailRequestUrl } from "./national-rail-request";
 
 test("adds destination filtering to Darwin board requests", () => {
   const requestUrl = new URL(

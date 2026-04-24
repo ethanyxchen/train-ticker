@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { nationalRailProvider } from "./national-rail.ts";
+import { nationalRailProvider } from "./national-rail";
 
 const STP_TO_BEDFORD = {
   id: "journey-1",
