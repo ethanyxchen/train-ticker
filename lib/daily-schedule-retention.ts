@@ -72,18 +72,18 @@ function retainLatestSchedules(
 }
 
 function getPPTimetableRunKey(name: string) {
-  const match = /^PPTimetable\/(?<runKey>\d{14})_[^/]+\.xml\.gz$/.exec(name);
-  return match?.groups?.runKey ?? null;
+  const match = /^PPTimetable\/(\d{14})_[^/]+\.xml\.gz$/.exec(name);
+  return match?.[1] ?? null;
 }
 
 function getEHSnapshotRunKey(name: string) {
-  const match = /^EHSnapshot\/EHSnapshot_(?<date>\d{6})_(?<time>\d{4})\.txt$/.exec(name);
+  const match = /^EHSnapshot\/EHSnapshot_(\d{6})_(\d{4})\.txt$/.exec(name);
 
-  if (!match?.groups) {
+  if (match === null) {
     return null;
   }
 
-  return `20${match.groups.date}${match.groups.time}`;
+  return `20${match[1]}${match[2]}`;
 }
 
 export function retainLatestPPTimetable(names: string[]) {
