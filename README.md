@@ -22,7 +22,7 @@ Add the values you need in `.env.local`.
 
 The site still starts without credentials. National Rail cards stay unconfigured until Darwin is set, disruption enrichment stays off until the separate RDG Disruptions credentials are set, and Tube requests can run without TfL keys.
 
-- `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET` is optional and used by the daily schedule cleanup command if you do not pass `--bucket`.
+- `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET` is optional and used by the daily schedule cleanup worker if you do not pass `--bucket`.
 
 ## Rail Disruptions Cache
 
@@ -45,7 +45,15 @@ mise run start
 
 ## Daily Schedule Cleanup
 
-The bucket cleanup command keeps only the newest batch in `PPTimetable/` and the newest file in `EHSnapshot/`. It ignores unrelated bucket objects.
+The bucket cleanup worker lives in `workers/daily-schedule-cleanup`. It keeps only the newest batch in `PPTimetable/` and the newest file in `EHSnapshot/`. It ignores unrelated bucket objects.
+
+Validate the worker locally:
+
+```bash
+npm run typecheck:worker
+npm run test:worker
+npm run build:worker
+```
 
 Dry run against the production bucket:
 
@@ -63,3 +71,9 @@ npm run cleanup:daily-schedule -- --bucket train-ticker-daily-train-schedule-inb
 If you set `TRAIN_TICKER_DAILY_SCHEDULE_BUCKET`, you can omit `--bucket`.
 
 The recommended hosted schedule is `03:05 GMT`, based on the observed `PPTimetable` batch timestamp of about `02:05 GMT`.
+
+Deploy only the worker source to Cloud Run Jobs:
+
+```bash
+gcloud run jobs deploy train-ticker-daily-schedule-cleanup --project train-ticker-494309 --region us-central1 --source workers/daily-schedule-cleanup --service-account daily-schedule-cleaner@train-ticker-494309.iam.gserviceaccount.com --set-env-vars "TRAIN_TICKER_DAILY_SCHEDULE_BUCKET=train-ticker-daily-train-schedule-inbox" --command npm --args run,cleanup:daily-schedule,--,--apply --tasks 1 --max-retries 0 --task-timeout 10m
+```

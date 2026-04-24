@@ -1,0 +1,23 @@
+{
+  "name": "daily-schedule-cleanup-worker",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "cleanup:daily-schedule": "node dist/retain-latest-schedules.js",
+    "cleanup:daily-schedule:dev": "tsx src/retain-latest-schedules.ts",
+    "test": "tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}

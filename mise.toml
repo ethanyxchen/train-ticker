@@ -4,9 +4,9 @@ gcloud = "latest"
 
 [tasks.install]
 description = "Install project dependencies"
-run = "npm ci"
-sources = ["package.json", "package-lock.json"]
-outputs = ["node_modules/.package-lock.json"]
+run = "npm ci && npm --prefix workers/daily-schedule-cleanup ci"
+sources = ["package.json", "package-lock.json", "workers/daily-schedule-cleanup/package.json", "workers/daily-schedule-cleanup/package-lock.json"]
+outputs = ["node_modules/.package-lock.json", "workers/daily-schedule-cleanup/node_modules/.package-lock.json"]
 
 [tasks.dev]
 description = "Start the development server"

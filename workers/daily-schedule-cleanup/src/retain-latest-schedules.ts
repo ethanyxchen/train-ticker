@@ -4,7 +4,7 @@ import {
   retainLatestEHSnapshot,
   retainLatestPPTimetable,
   type RetentionResult,
-} from "../lib/daily-schedule-retention";
+} from "./daily-schedule-retention";
 
 type ManagedPrefix = "EHSnapshot" | "PPTimetable";
 
@@ -104,10 +104,7 @@ function formatSample(label: string, names: string[]) {
     return [];
   }
 
-  return [
-    `${label}:`,
-    ...names.slice(0, 5).map((name) => `  ${name}`),
-  ];
+  return [`${label}:`, ...names.slice(0, 5).map((name) => `  ${name}`)];
 }
 
 function formatResult(result: RetentionResult) {
@@ -221,9 +218,7 @@ async function main() {
 
   console.log("");
   console.log(
-    args.apply
-      ? `Deleted ${totalDeleted} objects.`
-      : "Dry run only. No objects were deleted.",
+    args.apply ? `Deleted ${totalDeleted} objects.` : "Dry run only. No objects were deleted.",
   );
 }
 
