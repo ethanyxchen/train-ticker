@@ -72,6 +72,7 @@ select {
   background: transparent;
   box-sizing: border-box;
   font-family: var(--font-board), monospace, sans-serif;
+  font-weight: 400;
   font-size: inherit;
   line-height: 1;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
