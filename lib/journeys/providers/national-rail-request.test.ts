@@ -7,16 +7,11 @@ test("adds destination filtering to Darwin board requests", () => {
   const requestUrl = new URL(
     buildRailRequestUrl(
       {
-        id: "journey-1",
-        name: "London Liverpool Street to Cambridge",
-        provider: "national-rail",
         origin: {
           id: "LST",
-          label: "London Liverpool Street",
         },
         destination: {
           id: "CBG",
-          label: "Cambridge",
         },
       },
       {
@@ -42,16 +37,11 @@ test("can build an unfiltered Darwin board request", () => {
   const requestUrl = new URL(
     buildRailRequestUrl(
       {
-        id: "journey-1",
-        name: "London St Pancras International to Bedford",
-        provider: "national-rail",
         origin: {
           id: "STP",
-          label: "London St Pancras International",
         },
         destination: {
           id: "BDM",
-          label: "Bedford",
         },
       },
       {
