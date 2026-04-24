@@ -7,8 +7,10 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "gcp-build": "npm run build",
     "cleanup:daily-schedule": "node dist/retain-latest-schedules.js",
     "cleanup:daily-schedule:dev": "tsx src/retain-latest-schedules.ts",
+    "start": "node dist/retain-latest-schedules.js --apply",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

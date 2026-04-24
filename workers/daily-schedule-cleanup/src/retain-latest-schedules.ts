@@ -18,13 +18,17 @@ const DEFAULT_BUCKET_NAME = process.env.TRAIN_TICKER_DAILY_SCHEDULE_BUCKET?.trim
 const DEFAULT_PREFIXES: ManagedPrefix[] = ["PPTimetable", "EHSnapshot"];
 const PREFIX_LABELS = new Set<ManagedPrefix>(DEFAULT_PREFIXES);
 
-function parseArgs(argv: string[]): ParsedArgs {
+export function parseArgs(argv: string[]): ParsedArgs {
   let bucketName = DEFAULT_BUCKET_NAME;
   let apply = false;
   const prefixes: ManagedPrefix[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+
+    if (arg.trim().length === 0) {
+      continue;
+    }
 
     if (arg === "--help") {
       printUsage();
@@ -222,8 +226,10 @@ async function main() {
   );
 }
 
-void main().catch((error: unknown) => {
-  console.error(getErrorMessage(error));
+if (require.main === module) {
+  void main().catch((error: unknown) => {
+    console.error(getErrorMessage(error));
 
-  process.exit(1);
-});
+    process.exit(1);
+  });
+}
