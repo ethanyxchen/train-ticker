@@ -83,9 +83,20 @@ function LocationSearchField({
         }
 
         const data = (await response.json()) as { results: JourneySearchResult[] };
+        console.info("[journey-search]", {
+          provider,
+          query: trimmedQuery,
+          resultCount: data.results.length,
+          results: data.results,
+        });
         setResults(data.results);
       } catch (fetchError) {
         if (!abortController.signal.aborted) {
+          console.error("[journey-search]", {
+            provider,
+            query: trimmedQuery,
+            error: fetchError instanceof Error ? fetchError.message : fetchError,
+          });
           setError(
             fetchError instanceof Error ? fetchError.message : "Search failed.",
           );
