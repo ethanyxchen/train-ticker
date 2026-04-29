@@ -199,6 +199,10 @@ function buildFallbackRow(
   };
 }
 
+function getTargetBoardRowCount(snapshot: JourneySnapshot | undefined) {
+  return (snapshot?.options.length ?? 0) > 5 ? JOURNEY_BOARD_ROW_COUNT : 5;
+}
+
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
@@ -358,7 +362,8 @@ export function JourneyBoard({
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = toBoardRows(journey, snapshot);
-  const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
+  const targetRowCount = getTargetBoardRowCount(snapshot);
+  const emptyRowCount = Math.max(targetRowCount - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const allAlerts = snapshot?.alerts ?? [];
