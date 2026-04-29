@@ -8,6 +8,7 @@ import type {
 
 export interface JourneySnapshotContext {
   timeWindowHours?: number;
+  windowStartAt?: string;
   scheduledOptions?: JourneyOption[];
 }
 

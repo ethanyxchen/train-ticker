@@ -379,6 +379,7 @@ function getErrorMessage(error: unknown) {
 export async function loadScheduledOptionsForJourneys(
   journeys: SavedJourney[],
   timeWindowHours: number,
+  windowStartAt: Date,
 ): Promise<Record<string, JourneyOption[]>> {
   const config = getBucketConfig();
 
@@ -410,12 +411,13 @@ export async function loadScheduledOptionsForJourneys(
   const refMap = parseReferenceMap(referenceXml);
   const schedules = parseJourneys(timetableXml, refMap);
   const effectiveWindowHours = clampTimeWindowHours(timeWindowHours);
-  const now = new Date();
+  const start =
+    Number.isNaN(windowStartAt.getTime()) ? new Date() : new Date(windowStartAt);
 
   return Object.fromEntries(
     journeys.map((journey) => [
       journey.id,
-      collectOptionsForJourney(journey, schedules, now, effectiveWindowHours),
+      collectOptionsForJourney(journey, schedules, start, effectiveWindowHours),
     ]),
   );
 }
@@ -423,12 +425,14 @@ export async function loadScheduledOptionsForJourneys(
 export async function tryLoadScheduledOptionsForJourneys(
   journeys: SavedJourney[],
   timeWindowHours: number,
+  windowStartAt: Date,
 ): Promise<{ optionsByJourneyId: Record<string, JourneyOption[]>; alert?: string }> {
   try {
     return {
       optionsByJourneyId: await loadScheduledOptionsForJourneys(
         journeys,
         timeWindowHours,
+        windowStartAt,
       ),
     };
   } catch (error) {

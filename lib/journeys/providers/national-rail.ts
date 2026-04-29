@@ -552,11 +552,17 @@ async function loadRailBoards(
   params?: {
     filterDestination?: boolean;
     timeWindowMinutes?: number;
+    startOffsetMinutes?: number;
   },
 ): Promise<DarwinStationBoard[]> {
   const boards: DarwinStationBoard[] = [];
+  const startOffsetMinutes = Math.max(0, params?.startOffsetMinutes ?? 0);
 
-  for (const timeOffset of [0, 60, 90]) {
+  for (const timeOffset of [
+    startOffsetMinutes,
+    startOffsetMinutes + 60,
+    startOffsetMinutes + 90,
+  ]) {
     const requestUrl = buildRailRequestUrl(journey, connection, {
       filterDestination: params?.filterDestination,
       timeOffset,
@@ -584,12 +590,14 @@ async function loadBestRailBoards(
   journey: SavedJourney,
   connection: RailConnection,
   timeWindowMinutes: number,
+  startOffsetMinutes: number,
 ): Promise<RailBoardLoadResult> {
   const [filteredBoards, unfilteredBoards] = await Promise.all([
-    loadRailBoards(journey, connection, { timeWindowMinutes }),
+    loadRailBoards(journey, connection, { timeWindowMinutes, startOffsetMinutes }),
     loadRailBoards(journey, connection, {
       filterDestination: false,
       timeWindowMinutes,
+      startOffsetMinutes,
     }),
   ]);
 
@@ -626,6 +634,16 @@ export const nationalRailProvider: JourneyProvider = {
       6,
     );
     const timeWindowMinutes = timeWindowHours * 60;
+    const now = new Date();
+    const parsedWindowStart = context?.windowStartAt
+      ? new Date(context.windowStartAt)
+      : now;
+    const windowStart =
+      Number.isNaN(parsedWindowStart.getTime()) ? now : parsedWindowStart;
+    const startOffsetMinutes = Math.max(
+      0,
+      Math.floor((windowStart.getTime() - now.getTime()) / 60000),
+    );
 
     if (!connection) {
       return buildUnconfiguredSnapshot(journey);
@@ -635,20 +653,18 @@ export const nationalRailProvider: JourneyProvider = {
       journey,
       connection,
       timeWindowMinutes,
+      startOffsetMinutes,
     );
     const boards = [
       ...boardLoadResult.filteredBoards,
       ...boardLoadResult.unfilteredBoards,
     ];
     const board = boards[0];
-    const boardNow =
-      (board?.generatedAt ? new Date(board.generatedAt) : null) ?? new Date();
-    const effectiveNow = Number.isNaN(boardNow.getTime()) ? new Date() : boardNow;
     const departures = collectMatchingRailServices(
       [boardLoadResult.unfilteredBoards, boardLoadResult.filteredBoards],
       journey,
     )
-      .filter((service) => isServiceWithinWindow(service, effectiveNow, timeWindowHours))
+      .filter((service) => isServiceWithinWindow(service, windowStart, timeWindowHours))
       .slice(0, JOURNEY_BOARD_ROW_COUNT);
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
