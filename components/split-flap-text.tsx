@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { SplitFlap } from "react-split-flap";
 
 import {
@@ -49,11 +49,23 @@ const toneColors: Record<JourneySnapshotTone, string> = {
   warn: "var(--warn)",
   bad: "var(--bad)",
 };
+const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
+const REPLAY_SETTLE_MS = 70;
 
 function getReplayLabel(value: string) {
   const trimmed = value.trim();
 
   return trimmed ? trimmed : "blank";
+}
+
+function getReplayStepValue(value: string) {
+  return Array.from(value, (character) => {
+    const index = SPLIT_FLAP_CHARACTERS.indexOf(character);
+
+    return index === -1
+      ? character
+      : SPLIT_FLAP_CHARACTERS[(index + 1) % SPLIT_FLAP_CHARACTERS.length];
+  }).join("");
 }
 
 function renderHost(
@@ -91,15 +103,38 @@ export function SplitFlapText({
   switchable = true,
 }: SplitFlapTextProps) {
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
+  const [transientValue, setTransientValue] = useState<string | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
-  const replayKey = `${manualReplayVersion}:${switchable && cycle !== undefined ? cycle : "static"}`;
+  const previousCycleRef = useRef<number | undefined>(undefined);
+  const previousManualReplayVersionRef = useRef(0);
+
+  useEffect(() => {
+    const cycleChanged =
+      cycle !== undefined && cycle !== previousCycleRef.current;
+    const manualReplayChanged =
+      manualReplayVersion !== previousManualReplayVersionRef.current;
+
+    previousCycleRef.current = cycle;
+    previousManualReplayVersionRef.current = manualReplayVersion;
+
+    if (!cycleChanged && !manualReplayChanged) {
+      return;
+    }
+
+    setTransientValue(getReplayStepValue(paddedValue));
+
+    const timeoutId = window.setTimeout(() => {
+      setTransientValue(null);
+    }, REPLAY_SETTLE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cycle, manualReplayVersion, paddedValue]);
 
   return (
     <SplitFlap
-      key={replayKey}
-      value={paddedValue}
+      value={transientValue ?? paddedValue}
       length={length}
-      chars={[...SPLIT_FLAP_CHARACTERS]}
+      chars={splitFlapCharacters}
       padChar=" "
       padMode={align === "right" ? "start" : "end"}
       timing={28}
