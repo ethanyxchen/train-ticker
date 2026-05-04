@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import {
 
 import {
   SplitFlapText,
+  SPLIT_FLAP_TIMING_MS,
   getSplitFlapWidth,
 } from "@/components/split-flap-text";
 import {
@@ -21,6 +23,7 @@ import { getStationAbbreviation } from "@/lib/journeys/board-display";
 import { JOURNEY_BOARD_ROW_COUNT } from "@/lib/journeys/constants";
 import { parseInlineHtml } from "@/lib/journeys/inline-html";
 import { getBoardOperatorLabel } from "@/lib/journeys/operator-display";
+import { SPLIT_FLAP_CHARACTERS } from "@/lib/journeys/split-flap-display";
 import type {
   JourneySnapshot,
   JourneySnapshotTone,
@@ -55,6 +58,8 @@ type BoardColumn = {
 };
 
 const BOARD_GAP_REM = 0.75;
+const INITIAL_BOARD_REVEAL_DELAY_MS =
+  (SPLIT_FLAP_CHARACTERS.length + 1) * SPLIT_FLAP_TIMING_MS * 2;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "time", label: "Time", align: "right" },
   { key: "origin", label: "Origin" },
@@ -202,6 +207,12 @@ function getTargetBoardRowCount(snapshot: JourneySnapshot | undefined) {
   return (snapshot?.options.length ?? 0) > 5 ? JOURNEY_BOARD_ROW_COUNT : 5;
 }
 
+function hasBoardCellValue(row: BoardRow | undefined, column: BoardColumn) {
+  const value = row?.[column.key].trim();
+
+  return Boolean(value && value !== "--" && value !== "--:--");
+}
+
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
@@ -276,18 +287,22 @@ function BoardGridRow({
 
   return (
     <div className="grid items-center gap-3" style={boardGridStyle}>
-      {columns.map((column) => (
-        <SplitFlapText
-          key={column.key}
-          value={row ? row[column.key] : ""}
-          length={tickers[column.key]}
-          align={column.align}
-          tone={column.key === "status" && row ? row.statusTone : "neutral"}
-          cycle={row ? cycle : undefined}
-          animateOnMount={row ? animateOnMount : false}
-          switchable={switchable}
-        />
-      ))}
+      {columns.map((column) => {
+        const hasValue = hasBoardCellValue(row, column);
+
+        return (
+          <SplitFlapText
+            key={column.key}
+            value={row ? row[column.key] : ""}
+            length={tickers[column.key]}
+            align={column.align}
+            tone={column.key === "status" && row ? row.statusTone : "neutral"}
+            cycle={hasValue ? cycle : undefined}
+            animateOnMount={hasValue ? animateOnMount : false}
+            switchable={switchable && hasValue}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -359,9 +374,10 @@ export function JourneyBoard({
   onRemove,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
+  const [initialBoardSettled, setInitialBoardSettled] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
-  const rows = toBoardRows(journey, snapshot);
-  const targetRowCount = getTargetBoardRowCount(snapshot);
+  const rows = snapshot ? toBoardRows(journey, snapshot) : [];
+  const targetRowCount = snapshot ? getTargetBoardRowCount(snapshot) : 0;
   const emptyRowCount = Math.max(targetRowCount - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
@@ -414,8 +430,28 @@ export function JourneyBoard({
     return () => resizeObserver.disconnect();
   }, [boardTickers]);
 
+  useEffect(() => {
+    if (!snapshot || initialBoardSettled) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setInitialBoardSettled(true);
+    }, INITIAL_BOARD_REVEAL_DELAY_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [initialBoardSettled, snapshot]);
+
+  if (!snapshot) {
+    return null;
+  }
+
   return (
-    <section className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4">
+    <section
+      className="rounded-[1.15rem] border border-[#4a4b4e] bg-[linear-gradient(180deg,#232427,#17181a)] p-4"
+      style={{ visibility: initialBoardSettled ? "visible" : "hidden" }}
+      aria-hidden={!initialBoardSettled}
+    >
       <div className="overflow-hidden" ref={boardViewportRef}>
         <div
           className="w-full space-y-3"

@@ -50,6 +50,7 @@ const toneColors: Record<JourneySnapshotTone, string> = {
   bad: "var(--bad)",
 };
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
+export const SPLIT_FLAP_TIMING_MS = 28;
 const REPLAY_SETTLE_MS = 70;
 
 function getReplayLabel(value: string) {
@@ -105,7 +106,7 @@ export function SplitFlapText({
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
   const [transientValue, setTransientValue] = useState<string | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
-  const previousCycleRef = useRef<number | undefined>(undefined);
+  const previousCycleRef = useRef(cycle);
   const previousManualReplayVersionRef = useRef(0);
 
   useEffect(() => {
@@ -137,7 +138,7 @@ export function SplitFlapText({
       chars={splitFlapCharacters}
       padChar=" "
       padMode={align === "right" ? "start" : "end"}
-      timing={28}
+      timing={SPLIT_FLAP_TIMING_MS}
       hinge
       className="train-ticker-split-flap"
       style={splitFlapStyle}
