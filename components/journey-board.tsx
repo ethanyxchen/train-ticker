@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -33,6 +32,7 @@ interface JourneyBoardProps {
   snapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
   refreshing: boolean;
+  pollCycle: number;
   introCycle?: number;
   onRemove: () => void;
 }
@@ -54,7 +54,6 @@ type BoardColumn = {
   align?: "left" | "right";
 };
 
-const TICKER_SWITCH_INTERVAL_MS = 10_000;
 const BOARD_GAP_REM = 0.75;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "time", label: "Time", align: "right" },
@@ -355,10 +354,10 @@ export function JourneyBoard({
   snapshot,
   layout,
   refreshing,
+  pollCycle,
   introCycle,
   onRemove,
 }: JourneyBoardProps) {
-  const [tickerCycle, setTickerCycle] = useState(0);
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = toBoardRows(journey, snapshot);
@@ -374,14 +373,6 @@ export function JourneyBoard({
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
   } satisfies CSSProperties;
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setTickerCycle((currentTickerCycle) => currentTickerCycle + 1);
-    }, TICKER_SWITCH_INTERVAL_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   useLayoutEffect(() => {
     const boardViewportElement = boardViewportRef.current;
@@ -450,14 +441,14 @@ export function JourneyBoard({
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
-                      cycle={tickerCycle}
+                      cycle={pollCycle}
                       animateOnMount={introCycle !== undefined}
                     />
                     <BoardGridRow
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
-                      cycle={tickerCycle}
+                      cycle={pollCycle}
                       animateOnMount={introCycle !== undefined}
                     />
                   </div>
@@ -483,7 +474,7 @@ export function JourneyBoard({
                     tickers={boardTickers}
                     columns={BOARD_COLUMNS}
                     row={row}
-                    cycle={tickerCycle}
+                    cycle={pollCycle}
                     animateOnMount={introCycle !== undefined}
                   />
                 ))}

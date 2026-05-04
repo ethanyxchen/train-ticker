@@ -45,6 +45,7 @@ export function TrainTickerApp() {
   const [hydrated, setHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pollCycle, setPollCycle] = useState(0);
   const boardStackRef = useRef<HTMLDivElement | null>(null);
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
@@ -79,6 +80,7 @@ export function TrainTickerApp() {
       if (!currentJourneys.length) {
         startTransition(() => setSnapshots({}));
         setError(null);
+        setPollCycle((currentPollCycle) => currentPollCycle + 1);
         return;
       }
 
@@ -110,6 +112,7 @@ export function TrainTickerApp() {
         );
       } finally {
         setRefreshing(false);
+        setPollCycle((currentPollCycle) => currentPollCycle + 1);
       }
     },
     [journeys],
@@ -208,6 +211,7 @@ export function TrainTickerApp() {
             snapshot={snapshots[journey.id]}
             layout={boardLayout}
             refreshing={refreshing}
+            pollCycle={pollCycle}
             introCycle={introCycles[journey.id]}
             onRemove={() => {
               setJourneys((currentJourneys) =>
