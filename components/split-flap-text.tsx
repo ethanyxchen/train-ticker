@@ -50,7 +50,7 @@ const toneColors: Record<JourneySnapshotTone, string> = {
   bad: "var(--bad)",
 };
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
-export const SPLIT_FLAP_TIMING_MS = 28;
+const SPLIT_FLAP_TIMING_MS = 28;
 const REPLAY_SETTLE_MS = 70;
 
 function getReplayLabel(value: string) {
