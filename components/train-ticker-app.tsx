@@ -18,6 +18,15 @@ import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 const STORAGE_KEY = "train-ticker.saved-journeys.v1";
 const BOARD_GAP_REM = 0.75;
 const BOARD_PADDING_REM = 2;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const pollIntervalValue = Number.parseInt(
+  process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
+  10,
+);
+const POLL_INTERVAL_MS =
+  Number.isFinite(pollIntervalValue) && pollIntervalValue > 0
+    ? pollIntervalValue
+    : DEFAULT_POLL_INTERVAL_MS;
 
 function toSnapshotMap(items: JourneySnapshot[]): Record<string, JourneySnapshot> {
   return Object.fromEntries(items.map((snapshot) => [snapshot.journeyId, snapshot]));
@@ -127,7 +136,7 @@ export function TrainTickerApp() {
 
     const intervalId = window.setInterval(() => {
       void refreshJourneys(journeys);
-    }, 60_000);
+    }, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
   }, [hydrated, journeys, refreshJourneys]);

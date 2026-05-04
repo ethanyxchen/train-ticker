@@ -19,6 +19,7 @@ Add the values you need in `.env.local`.
 - `RDG_DISRUPTIONS_BASE_URL` and `RDG_DISRUPTIONS_CONSUMER_KEY` enable disruption-aware National Rail alerts and empty states through the Rail Data Marketplace disruptions API.
 - `RDG_DISRUPTIONS_USER_AGENT` is optional and defaults to `TrainTicker/0.1`.
 - `TFL_APP_ID` and `TFL_APP_KEY` are optional, but recommended for higher TfL rate limits.
+- `NEXT_PUBLIC_POLL_INTERVAL_MS` controls board refresh cadence in milliseconds and defaults to `60000`.
 
 The site still starts without credentials. National Rail cards stay unconfigured until Darwin is set, disruption enrichment stays off until the separate RDG Disruptions credentials are set, and Tube requests can run without TfL keys.
 
