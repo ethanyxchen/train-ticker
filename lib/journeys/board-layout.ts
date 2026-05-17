@@ -20,10 +20,6 @@ interface ResolveBoardLayoutOptions {
   gapRem: number;
 }
 
-function getAdditionalTickerWidthRem() {
-  return getSplitFlapWidthRem(2) - getSplitFlapWidthRem(1);
-}
-
 export function getBoardWidthRem(tickers: BoardTickers, gapRem: number) {
   return (
     Object.values(tickers).reduce<number>(
@@ -47,20 +43,8 @@ export function resolveBoardLayout({
   baseTickers,
   gapRem,
 }: ResolveBoardLayoutOptions): ResolvedBoardLayout {
-  const extraStatusCells = Math.max(
-    Math.floor(
-      (availableRem - getBoardWidthRem(baseTickers, gapRem)) /
-        getAdditionalTickerWidthRem(),
-    ),
-    0,
-  );
-  const tickers = {
-    ...baseTickers,
-    status: baseTickers.status + extraStatusCells,
-  };
-
   return {
-    tickers,
-    insetRem: Math.max((availableRem - getBoardWidthRem(tickers, gapRem)) / 2, 0),
+    tickers: baseTickers,
+    insetRem: Math.max((availableRem - getBoardWidthRem(baseTickers, gapRem)) / 2, 0),
   };
 }

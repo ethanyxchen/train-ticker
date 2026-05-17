@@ -21,7 +21,7 @@ test("keeps the hardcoded column widths when the viewport fits the base board", 
   assert.deepEqual(layout.tickers, BASE_TICKERS);
 });
 
-test("uses extra space only to expand the status column", () => {
+test("keeps the hardcoded column widths even when extra space is available", () => {
   const layout = resolveBoardLayout({
     availableRem:
       getBoardWidthRem(
@@ -35,9 +35,10 @@ test("uses extra space only to expand the status column", () => {
     gapRem: GAP_REM,
   });
 
+  assert.equal(layout.tickers.time, BASE_TICKERS.time);
   assert.equal(layout.tickers.origin, BASE_TICKERS.origin);
   assert.equal(layout.tickers.destination, BASE_TICKERS.destination);
-  assert.equal(layout.tickers.status, BASE_TICKERS.status + 2);
+  assert.equal(layout.tickers.status, BASE_TICKERS.status);
 });
 
 test("does not shrink the fixed columns when the viewport is narrower than the board", () => {
