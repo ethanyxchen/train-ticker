@@ -99,11 +99,28 @@ function getAnimationDurationMs(length: number) {
   return Math.max(length, 1) * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
 }
 
+function getStaticDigitMode(character: string) {
+  return /^[\s0-9]$/.test(character) ? "num" : "alpha";
+}
+
 function renderStaticCharacter(character: string, index: number) {
+  const displayCharacter = character === " " ? "\u00a0" : character;
+
   return (
-    <span key={index} className="train-ticker-static-digit" aria-hidden="true">
-      <span className="train-ticker-static-char">
-        {character === " " ? "\u00a0" : character}
+    <span
+      key={index}
+      className="split-flap-digit"
+      data-kind="digit"
+      data-mode={getStaticDigitMode(character)}
+      aria-hidden="true"
+    >
+      <span className="split-flap-part top">
+        <span className="split-flap-char">{displayCharacter}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span className="split-flap-part bottom">
+        <span className="split-flap-char">{displayCharacter}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
       </span>
     </span>
   );
@@ -178,7 +195,7 @@ export function SplitFlapText({
   const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
   const staticContent = (
     <span
-      className="train-ticker-static-split-flap"
+      className="split-flap-display train-ticker-split-flap"
       style={{
         ...splitFlapStyle,
         color: toneColors[tone],
