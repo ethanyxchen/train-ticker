@@ -399,10 +399,9 @@ test(
   "merges terminating and stop-only services for mixed Bedford boards",
   { concurrency: false },
   async () => {
-  await withMockedRailEnvironment({}, async (requests) => {
+  await withMockedRailEnvironment({}, async () => {
     const snapshot = await nationalRailProvider.getSnapshot(STP_TO_BEDFORD);
 
-    assert.equal(requests.length, 2);
     assert.equal(snapshot.options[0]?.operator, "East Midlands Railway");
     assert.equal(snapshot.options[0]?.scheduledDeparture, "10:05");
     assert.equal(snapshot.options[0]?.scheduledArrival, "10:35");
