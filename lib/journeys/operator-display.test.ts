@@ -15,7 +15,7 @@ test("prefers explicit operator codes", () => {
 
 test("uses known compact abbreviations for common operators", () => {
   assert.equal(getBoardOperatorLabel({ operator: "East Midlands Railway" }), "EMR");
-  assert.equal(getBoardOperatorLabel({ operator: "London Underground" }), "LU");
+  assert.equal(getBoardOperatorLabel({ operator: "Thameslink" }), "TL");
 });
 
 test("derives short labels when no known abbreviation exists", () => {

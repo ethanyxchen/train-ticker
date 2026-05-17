@@ -14,7 +14,6 @@ function formatStationLabel(label: string) {
   const normalized = label
     .replace(/\bSt\./gi, "St")
     .replace(/\s+International\b/gi, "")
-    .replace(/\s+Underground Station\b/gi, "")
     .replace(/\s+Rail Station\b/gi, "")
     .replace(/\s+Station\b/gi, "")
     .replace(/\s+/g, " ")

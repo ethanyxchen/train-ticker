@@ -17,7 +17,7 @@ const boardFont = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Train Ticker",
   description:
-    "Personal live departure board for saved EMR and London Underground journeys.",
+    "Personal live departure board for saved National Rail journeys.",
   icons: {
     icon: [{ url: "/train_ticker_color.svg", type: "image/svg+xml" }],
   },

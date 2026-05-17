@@ -1,21 +1,13 @@
 import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
 import type { JourneyProvider } from "@/lib/journeys/providers/base";
 import { nationalRailProvider } from "@/lib/journeys/providers/national-rail";
-import { tflTubeProvider } from "@/lib/journeys/providers/tfl";
-
-const PROVIDERS: Record<string, JourneyProvider> = {
-  [nationalRailProvider.id]: nationalRailProvider,
-  [tflTubeProvider.id]: tflTubeProvider,
-};
 
 export function getJourneyProvider(providerId: string): JourneyProvider {
-  const provider = PROVIDERS[providerId];
-
-  if (!provider) {
+  if (providerId !== nationalRailProvider.id) {
     throw new Error(`Unsupported provider: ${providerId}`);
   }
 
-  return provider;
+  return nationalRailProvider;
 }
 
 export async function loadJourneySnapshot(

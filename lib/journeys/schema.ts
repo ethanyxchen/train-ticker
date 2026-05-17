@@ -4,7 +4,7 @@ import type {
   SavedJourney,
 } from "@/lib/journeys/types";
 
-const PROVIDERS = new Set<JourneyProviderId>(["national-rail", "tfl-tube"]);
+const PROVIDERS = new Set<JourneyProviderId>(["national-rail"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

@@ -4,7 +4,6 @@ const KNOWN_OPERATOR_ABBREVIATIONS: Record<string, string> = {
   "Greater Anglia": "GA",
   "Great Northern": "GN",
   "London Northwestern Railway": "LNR",
-  "London Underground": "LU",
   Thameslink: "TL",
 };
 

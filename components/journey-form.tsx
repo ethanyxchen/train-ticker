@@ -5,7 +5,6 @@ import { useDeferredValue, useEffect, useId, useState } from "react";
 import type {
   JourneyDefinition,
   JourneyLocation,
-  JourneyProviderId,
   JourneySearchResult,
 } from "@/lib/journeys/types";
 
@@ -15,7 +14,6 @@ interface JourneyFormProps {
 
 interface SearchFieldProps {
   ariaLabel: string;
-  provider: JourneyProviderId;
   placeholder: string;
   value: JourneyLocation | null;
   onSelect: (location: JourneyLocation | null) => void;
@@ -41,7 +39,6 @@ export function getNextSearchResultIndex(
 
 function LocationSearchField({
   ariaLabel,
-  provider,
   placeholder,
   value,
   onSelect,
@@ -56,7 +53,7 @@ function LocationSearchField({
 
   useEffect(() => {
     setQuery(value?.label ?? "");
-  }, [provider, value?.id, value?.label]);
+  }, [value?.id, value?.label]);
 
   useEffect(() => {
     const trimmedQuery = deferredQuery.trim();
@@ -74,7 +71,7 @@ function LocationSearchField({
       try {
         setError(null);
         const response = await fetch(
-          `/api/search?provider=${provider}&q=${encodeURIComponent(trimmedQuery)}`,
+          `/api/search?q=${encodeURIComponent(trimmedQuery)}`,
           { signal: abortController.signal },
         );
 
@@ -84,7 +81,6 @@ function LocationSearchField({
 
         const data = (await response.json()) as { results: JourneySearchResult[] };
         console.info("[journey-search]", {
-          provider,
           query: trimmedQuery,
           resultCount: data.results.length,
           results: data.results,
@@ -93,7 +89,6 @@ function LocationSearchField({
       } catch (fetchError) {
         if (!abortController.signal.aborted) {
           console.error("[journey-search]", {
-            provider,
             query: trimmedQuery,
             error: fetchError instanceof Error ? fetchError.message : fetchError,
           });
@@ -107,7 +102,7 @@ function LocationSearchField({
     void loadResults();
 
     return () => abortController.abort();
-  }, [deferredQuery, isOpen, provider]);
+  }, [deferredQuery, isOpen]);
 
   useEffect(() => {
     setActiveIndex((currentIndex) =>
@@ -232,7 +227,6 @@ function LocationSearchField({
 }
 
 export function JourneyForm({ onAddJourney }: JourneyFormProps) {
-  const provider: JourneyProviderId = "national-rail";
   const [origin, setOrigin] = useState<JourneyLocation | null>(null);
   const [destination, setDestination] = useState<JourneyLocation | null>(null);
 
@@ -248,7 +242,7 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
         }
 
         onAddJourney({
-          provider,
+          provider: "national-rail",
           origin,
           destination,
         });
@@ -261,7 +255,6 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
       <div className="flex flex-wrap items-center gap-2">
         <LocationSearchField
           ariaLabel="Origin"
-          provider={provider}
           value={origin}
           onSelect={setOrigin}
           placeholder="Origin: St Pancras or STP"
@@ -273,7 +266,6 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
 
         <LocationSearchField
           ariaLabel="Destination"
-          provider={provider}
           value={destination}
           onSelect={setDestination}
           placeholder="Destination: Leicester or LEI"

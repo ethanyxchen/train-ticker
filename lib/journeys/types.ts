@@ -1,4 +1,4 @@
-export type JourneyProviderId = "national-rail" | "tfl-tube";
+export type JourneyProviderId = "national-rail";
 
 export type JourneySnapshotTone = "neutral" | "good" | "warn" | "bad";
 
