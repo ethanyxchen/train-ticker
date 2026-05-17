@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { JourneyBoard } from "@/components/journey-board";
 import { JourneyForm } from "@/components/journey-form";
@@ -48,98 +48,96 @@ function hasSameBoardLayout(
 }
 
 export function TrainTickerApp() {
-  const [journeys, setJourneys] = useState<SavedJourney[]>([]);
+  const [journeys, setJourneys] = useState<SavedJourney[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+
+    if (!stored) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as SavedJourney[];
+      return normalizeSavedJourneys(parsed);
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
+  });
   const [snapshots, setSnapshots] = useState<Record<string, JourneySnapshot>>({});
   const [introCycles, setIntroCycles] = useState<Record<string, number>>({});
-  const [hydrated, setHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollCycle, setPollCycle] = useState(0);
   const boardStackRef = useRef<HTMLDivElement | null>(null);
+  const journeysRef = useRef(journeys);
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
     insetRem: 0,
   });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as SavedJourney[];
-        setJourneys(normalizeSavedJourneys(parsed));
-      } catch {
-        window.localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-
-    setHydrated(true);
-  }, []);
+    journeysRef.current = journeys;
+  }, [journeys]);
 
   useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(journeys));
-  }, [hydrated, journeys]);
+  }, [journeys]);
 
-  const refreshJourneys = useCallback(
-    async (currentJourneys = journeys) => {
-      if (!currentJourneys.length) {
-        startTransition(() => setSnapshots({}));
-        setError(null);
-        setPollCycle((currentPollCycle) => currentPollCycle + 1);
-        return;
-      }
-
-      try {
-        setRefreshing(true);
-        setError(null);
-
-        const response = await fetch("/api/journeys", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ journeys: currentJourneys }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Could not refresh live journeys.");
-        }
-
-        const data = (await response.json()) as { snapshots: JourneySnapshot[] };
-        startTransition(() => {
-          setSnapshots(toSnapshotMap(data.snapshots));
-        });
-      } catch (refreshError) {
-        setError(
-          refreshError instanceof Error
-            ? refreshError.message
-            : "Could not refresh live journeys.",
-        );
-      } finally {
-        setRefreshing(false);
-        setPollCycle((currentPollCycle) => currentPollCycle + 1);
-      }
-    },
-    [journeys],
-  );
-
-  useEffect(() => {
-    if (!hydrated) {
+  const refreshJourneys = useEffectEvent(async (currentJourneys: SavedJourney[]) => {
+    if (!currentJourneys.length) {
+      startTransition(() => setSnapshots({}));
+      setError(null);
+      setPollCycle((currentPollCycle) => currentPollCycle + 1);
       return;
     }
 
-    void refreshJourneys(journeys);
+    try {
+      setRefreshing(true);
+      setError(null);
+
+      const response = await fetch("/api/journeys", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ journeys: currentJourneys }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not refresh live journeys.");
+      }
+
+      const data = (await response.json()) as { snapshots: JourneySnapshot[] };
+      startTransition(() => {
+        setSnapshots(toSnapshotMap(data.snapshots));
+      });
+    } catch (refreshError) {
+      setError(
+        refreshError instanceof Error
+          ? refreshError.message
+          : "Could not refresh live journeys.",
+      );
+    } finally {
+      setRefreshing(false);
+      setPollCycle((currentPollCycle) => currentPollCycle + 1);
+    }
+  });
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void refreshJourneys(journeys);
+    });
 
     const intervalId = window.setInterval(() => {
-      void refreshJourneys(journeys);
+      void refreshJourneys(journeysRef.current);
     }, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [hydrated, journeys, refreshJourneys]);
+  }, [journeys]);
 
   useEffect(() => {
     const boardStackElement = boardStackRef.current;

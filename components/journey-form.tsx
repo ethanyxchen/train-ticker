@@ -50,18 +50,15 @@ function LocationSearchField({
   const [error, setError] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query);
   const listboxId = useId();
+  const trimmedQuery = deferredQuery.trim();
+  const isSearchActive = isOpen && trimmedQuery.length >= 2;
+  const visibleResults = isSearchActive ? results : [];
+  const visibleError = isSearchActive ? error : null;
+  const visibleActiveIndex =
+    activeIndex !== null && activeIndex < visibleResults.length ? activeIndex : null;
 
   useEffect(() => {
-    setQuery(value?.label ?? "");
-  }, [value?.id, value?.label]);
-
-  useEffect(() => {
-    const trimmedQuery = deferredQuery.trim();
-
-    if (!isOpen || trimmedQuery.length < 2) {
-      setResults([]);
-      setActiveIndex(null);
-      setError(null);
+    if (!isSearchActive) {
       return;
     }
 
@@ -102,13 +99,7 @@ function LocationSearchField({
     void loadResults();
 
     return () => abortController.abort();
-  }, [deferredQuery, isOpen]);
-
-  useEffect(() => {
-    setActiveIndex((currentIndex) =>
-      currentIndex !== null && currentIndex < results.length ? currentIndex : null,
-    );
-  }, [results]);
+  }, [isSearchActive, trimmedQuery]);
 
   function closeResults() {
     setIsOpen(false);
@@ -130,11 +121,13 @@ function LocationSearchField({
       <input
         aria-label={ariaLabel}
         aria-activedescendant={
-          activeIndex === null ? undefined : `${listboxId}-option-${activeIndex}`
+          visibleActiveIndex === null
+            ? undefined
+            : `${listboxId}-option-${visibleActiveIndex}`
         }
         aria-autocomplete="list"
-        aria-controls={results.length > 0 ? listboxId : undefined}
-        aria-expanded={isOpen && results.length > 0}
+        aria-controls={visibleResults.length > 0 ? listboxId : undefined}
+        aria-expanded={isOpen && visibleResults.length > 0}
         aria-haspopup="listbox"
         autoComplete="off"
         value={query}
@@ -158,20 +151,20 @@ function LocationSearchField({
           }
 
           if (key === "ArrowDown" || key === "ArrowUp") {
-            if (results.length === 0) {
+            if (visibleResults.length === 0) {
               return;
             }
 
             event.preventDefault();
             setIsOpen(true);
             setActiveIndex((currentIndex) =>
-              getNextSearchResultIndex(currentIndex, key, results.length),
+              getNextSearchResultIndex(currentIndex, key, visibleResults.length),
             );
             return;
           }
 
-          if (key === "Enter" && activeIndex !== null) {
-            const result = results[activeIndex];
+          if (key === "Enter" && visibleActiveIndex !== null) {
+            const result = visibleResults[visibleActiveIndex];
 
             if (!result) {
               return;
@@ -189,26 +182,26 @@ function LocationSearchField({
         className="h-11 w-full rounded-[0.9rem] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-4 text-sm text-[var(--paper)] outline-none transition placeholder:text-[rgba(247,244,238,0.5)] focus:border-[var(--board-header)]"
       />
 
-      {isOpen && (results.length > 0 || error) ? (
+      {isOpen && (visibleResults.length > 0 || visibleError) ? (
         <div
           className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-[1rem] border border-[rgba(255,255,255,0.08)] bg-[#191a1d] shadow-[0_18px_35px_rgba(0,0,0,0.32)]"
-          id={results.length > 0 ? listboxId : undefined}
-          role={results.length > 0 ? "listbox" : undefined}
+          id={visibleResults.length > 0 ? listboxId : undefined}
+          role={visibleResults.length > 0 ? "listbox" : undefined}
         >
-          {error ? (
-            <div className="px-4 py-3 text-sm text-[var(--bad)]">{error}</div>
+          {visibleError ? (
+            <div className="px-4 py-3 text-sm text-[var(--bad)]">{visibleError}</div>
           ) : null}
-          {results.map((result, index) => (
+          {visibleResults.map((result, index) => (
             <button
               key={`${ariaLabel}-${result.id}`}
               type="button"
-              aria-selected={activeIndex === index}
+              aria-selected={visibleActiveIndex === index}
               id={`${listboxId}-option-${index}`}
               onMouseDown={() => selectResult(result)}
               onMouseEnter={() => setActiveIndex(index)}
               role="option"
               className={`flex w-full flex-col gap-1 border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-left first:border-t-0 ${
-                activeIndex === index
+                visibleActiveIndex === index
                   ? "bg-[rgba(255,255,255,0.06)]"
                   : "hover:bg-[rgba(255,255,255,0.04)]"
               }`}
@@ -255,6 +248,7 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
       <div className="flex flex-wrap items-center gap-2">
         <LocationSearchField
           ariaLabel="Origin"
+          key={origin?.id ?? "origin-empty"}
           value={origin}
           onSelect={setOrigin}
           placeholder="Origin: St Pancras or STP"
@@ -266,6 +260,7 @@ export function JourneyForm({ onAddJourney }: JourneyFormProps) {
 
         <LocationSearchField
           ariaLabel="Destination"
+          key={destination?.id ?? "destination-empty"}
           value={destination}
           onSelect={setDestination}
           placeholder="Destination: Leicester or LEI"
