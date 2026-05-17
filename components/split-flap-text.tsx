@@ -229,7 +229,6 @@ export function SplitFlapText({
       hinge
       className="train-ticker-split-flap"
       style={splitFlapStyle}
-      background="linear-gradient(180deg,var(--board-cell-top),var(--board-cell-bottom))"
       fontColor={toneColors[tone]}
       render={(children) =>
         renderHost(children, switchable, paddedValue, () =>
