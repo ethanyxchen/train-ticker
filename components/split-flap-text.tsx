@@ -99,6 +99,16 @@ function getAnimationDurationMs(length: number) {
   return Math.max(length, 1) * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
 }
 
+function renderStaticCharacter(character: string, index: number) {
+  return (
+    <span key={index} className="train-ticker-static-digit" aria-hidden="true">
+      <span className="train-ticker-static-char">
+        {character === " " ? "\u00a0" : character}
+      </span>
+    </span>
+  );
+}
+
 export function SplitFlapText({
   value,
   length,
@@ -168,14 +178,14 @@ export function SplitFlapText({
   const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
   const staticContent = (
     <span
-      className="train-ticker-static-flap"
+      className="train-ticker-static-split-flap"
       style={{
         ...splitFlapStyle,
         color: toneColors[tone],
       }}
       aria-hidden="true"
     >
-      {paddedValue}
+      {Array.from(paddedValue, renderStaticCharacter)}
     </span>
   );
 
