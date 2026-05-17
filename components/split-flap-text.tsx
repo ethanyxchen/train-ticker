@@ -42,12 +42,6 @@ const splitFlapStyle = {
   "--train-ticker-flap-padding-inline": `${SPLIT_FLAP_CELL.paddingInlineRem}rem`,
 } satisfies SplitFlapStyle;
 
-const toneColors: Record<JourneySnapshotTone, string> = {
-  neutral: "var(--board-text)",
-  good: "var(--good)",
-  warn: "var(--warn)",
-  bad: "var(--bad)",
-};
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
 const SPLIT_FLAP_TIMING_MS = 28;
 const REPLAY_SETTLE_MS = 70;
@@ -130,7 +124,6 @@ export function SplitFlapText({
   value,
   length,
   align = "left",
-  tone = "neutral",
   animationId,
   switchable = true,
 }: SplitFlapTextProps) {
@@ -196,10 +189,7 @@ export function SplitFlapText({
   const staticContent = (
     <span
       className="split-flap-display train-ticker-split-flap"
-      style={{
-        ...splitFlapStyle,
-        color: toneColors[tone],
-      }}
+      style={splitFlapStyle}
       aria-hidden="true"
     >
       {Array.from(paddedValue, renderStaticCharacter)}
