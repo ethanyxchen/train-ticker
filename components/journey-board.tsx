@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useMemo,
   useLayoutEffect,
   useRef,
   useState,
@@ -11,6 +12,12 @@ import {
   SplitFlapText,
   getSplitFlapWidth,
 } from "@/components/split-flap-text";
+import {
+  getBoardRowAnimationStates,
+  getBoardRowKey,
+  type BoardRowAnimationState,
+  type BoardRowSnapshot,
+} from "@/lib/journeys/board-row-diff";
 import {
   getBoardWidthRem,
   shouldUseCompactBoardLayout,
@@ -30,15 +37,14 @@ import type {
 interface JourneyBoardProps {
   journey: SavedJourney;
   snapshot: JourneySnapshot | undefined;
+  previousSnapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
   refreshing: boolean;
-  pollCycle: number;
   introCycle?: number;
   onRemove: () => void;
 }
 
-interface BoardRow {
-  id: string;
+type BoardRow = BoardRowSnapshot & {
   time: string;
   origin: string;
   destination: string;
@@ -46,7 +52,7 @@ interface BoardRow {
   platform: string;
   status: string;
   statusTone: JourneySnapshotTone;
-}
+};
 
 type BoardColumn = {
   key: keyof BoardTickers;
@@ -158,7 +164,6 @@ function buildFallbackRow(
 ): BoardRow {
   if (!snapshot) {
     return {
-      id: journey.id,
       time: "",
       origin: "",
       destination: "",
@@ -177,7 +182,6 @@ function buildFallbackRow(
   const fallbackStatus = getStatusFallback(snapshot);
 
   return {
-    id: journey.id,
     time: normalizeBoardValue(
       departureField?.value,
       "--:--",
@@ -218,11 +222,11 @@ function toBoardRows(
 
   return snapshot.options
     .slice(0, JOURNEY_BOARD_ROW_COUNT)
-    .map((option, index) => {
+    .map((option) => {
       const optionStatus = getOptionStatus(snapshot, option);
 
       return {
-        id: `${journey.id}-${option.id}-${index}`,
+        optionId: option.id,
         time: normalizeBoardValue(
           option.scheduledDeparture ?? option.expectedDeparture,
           "--:--",
@@ -267,15 +271,15 @@ function BoardGridRow({
   tickers,
   columns,
   row,
-  cycle,
-  animateOnMount = false,
+  animatedCells,
+  animationId,
   switchable = true,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
   row?: BoardRow;
-  cycle?: number;
-  animateOnMount?: boolean;
+  animatedCells?: BoardRowAnimationState;
+  animationId?: number | string;
   switchable?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns);
@@ -292,8 +296,9 @@ function BoardGridRow({
             length={tickers[column.key]}
             align={column.align}
             tone={column.key === "status" && row ? row.statusTone : "neutral"}
-            cycle={hasValue ? cycle : undefined}
-            animateOnMount={hasValue ? animateOnMount : false}
+            animationId={
+              hasValue && animatedCells?.[column.key] ? animationId : undefined
+            }
             switchable={switchable && hasValue}
           />
         );
@@ -362,15 +367,22 @@ function AlertBody({ value }: { value: string }) {
 export function JourneyBoard({
   journey,
   snapshot,
+  previousSnapshot,
   layout,
   refreshing,
-  pollCycle,
   introCycle,
   onRemove,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
-  const rows = snapshot ? toBoardRows(journey, snapshot) : [];
+  const rows = useMemo(
+    () => (snapshot ? toBoardRows(journey, snapshot) : []),
+    [journey, snapshot],
+  );
+  const previousRows = useMemo(
+    () => (previousSnapshot ? toBoardRows(journey, previousSnapshot) : null),
+    [journey, previousSnapshot],
+  );
   const targetRowCount = snapshot ? getTargetBoardRowCount(snapshot) : 0;
   const emptyRowCount = Math.max(targetRowCount - rows.length, 0);
   const boardTickers = layout.tickers;
@@ -383,6 +395,17 @@ export function JourneyBoard({
     minWidth: `${boardMinWidthRem}rem`,
     paddingInline: `${layout.insetRem}rem`,
   } satisfies CSSProperties;
+  const fallbackRowKey = `fallback:${journey.id}`;
+  const animateAllFields = introCycle !== undefined && previousSnapshot === undefined;
+  const animatedRows = getBoardRowAnimationStates(
+    rows,
+    previousRows ?? [],
+    fallbackRowKey,
+    {
+      animateAllFields,
+      suppressNewRows: previousRows === null && !animateAllFields,
+    },
+  );
 
   useLayoutEffect(() => {
     const boardViewportElement = boardViewportRef.current;
@@ -449,21 +472,34 @@ export function JourneyBoard({
               </div>
 
               <div className="space-y-3">
-                {rows.map((row) => (
-                  <div key={row.id} className="space-y-2">
+                {rows.map((row, index) => (
+                  <div
+                    key={getBoardRowKey(row, fallbackRowKey)}
+                    className="space-y-2"
+                  >
                     <BoardGridRow
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
-                      cycle={pollCycle}
-                      animateOnMount={introCycle !== undefined}
+                      animatedCells={animatedRows[index]}
+                      animationId={
+                        animatedRows[index] &&
+                        (animateAllFields
+                          ? `intro:${introCycle}:${index}`
+                          : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
+                      }
                     />
                     <BoardGridRow
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
-                      cycle={pollCycle}
-                      animateOnMount={introCycle !== undefined}
+                      animatedCells={animatedRows[index]}
+                      animationId={
+                        animatedRows[index] &&
+                        (animateAllFields
+                          ? `intro:${introCycle}:${index}`
+                          : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
+                      }
                     />
                   </div>
                 ))}
@@ -482,14 +518,19 @@ export function JourneyBoard({
               <BoardHeader tickers={boardTickers} columns={BOARD_COLUMNS} />
 
               <div className="space-y-2">
-                {rows.map((row) => (
+                {rows.map((row, index) => (
                   <BoardGridRow
-                    key={row.id}
+                    key={getBoardRowKey(row, fallbackRowKey)}
                     tickers={boardTickers}
                     columns={BOARD_COLUMNS}
                     row={row}
-                    cycle={pollCycle}
-                    animateOnMount={introCycle !== undefined}
+                    animatedCells={animatedRows[index]}
+                    animationId={
+                      animatedRows[index] &&
+                      (animateAllFields
+                        ? `intro:${introCycle}:${index}`
+                        : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
+                    }
                   />
                 ))}
 

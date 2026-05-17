@@ -21,8 +21,7 @@ interface SplitFlapTextProps {
   length: number;
   align?: "left" | "right";
   tone?: JourneySnapshotTone;
-  cycle?: number;
-  animateOnMount?: boolean;
+  animationId?: number | string;
   switchable?: boolean;
 }
 
@@ -52,6 +51,7 @@ const toneColors: Record<JourneySnapshotTone, string> = {
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
 const SPLIT_FLAP_TIMING_MS = 28;
 const REPLAY_SETTLE_MS = 70;
+const ANIMATION_BUFFER_MS = 140;
 
 function getReplayLabel(value: string) {
   const trimmed = value.trim();
@@ -95,41 +95,101 @@ function renderHost(
   );
 }
 
+function getAnimationDurationMs(length: number) {
+  return Math.max(length, 1) * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
+}
+
 export function SplitFlapText({
   value,
   length,
   align = "left",
   tone = "neutral",
-  cycle,
+  animationId,
   switchable = true,
 }: SplitFlapTextProps) {
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
   const [transientValue, setTransientValue] = useState<string | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
-  const previousCycleRef = useRef(cycle);
+  const [activeAnimationId, setActiveAnimationId] = useState<number | string | null>(
+    animationId ?? null,
+  );
+  const [committedAnimationId, setCommittedAnimationId] = useState<number | string | undefined>(
+    undefined,
+  );
+  const previousAnimationIdRef = useRef<number | string | undefined>(undefined);
   const previousManualReplayVersionRef = useRef(0);
+  const hasPendingExternalAnimation =
+    animationId !== undefined && animationId !== committedAnimationId;
 
   useEffect(() => {
-    const cycleChanged =
-      cycle !== undefined && cycle !== previousCycleRef.current;
     const manualReplayChanged =
       manualReplayVersion !== previousManualReplayVersionRef.current;
+    const animationChanged =
+      animationId !== undefined && animationId !== previousAnimationIdRef.current;
+    const initialExternalAnimation =
+      animationChanged && previousAnimationIdRef.current === undefined;
 
-    previousCycleRef.current = cycle;
+    previousAnimationIdRef.current = animationId;
     previousManualReplayVersionRef.current = manualReplayVersion;
 
-    if (!cycleChanged && !manualReplayChanged) {
+    if (!animationChanged && !manualReplayChanged) {
       return;
     }
 
-    setTransientValue(getReplayStepValue(paddedValue));
+    const nextAnimationId = manualReplayChanged
+      ? `manual-${manualReplayVersion}`
+      : animationId ?? null;
+
+    if (nextAnimationId === null) {
+      return;
+    }
+
+    if (!manualReplayChanged) {
+      setCommittedAnimationId(animationId);
+    }
+
+    setActiveAnimationId(nextAnimationId);
+    setTransientValue(
+      manualReplayChanged || !initialExternalAnimation
+        ? getReplayStepValue(paddedValue)
+        : null,
+    );
 
     const timeoutId = window.setTimeout(() => {
       setTransientValue(null);
-    }, REPLAY_SETTLE_MS);
+      setActiveAnimationId((currentAnimationId) =>
+        currentAnimationId === nextAnimationId ? null : currentAnimationId,
+      );
+    }, getAnimationDurationMs(length));
 
     return () => window.clearTimeout(timeoutId);
-  }, [cycle, manualReplayVersion, paddedValue]);
+  }, [animationId, length, manualReplayVersion, paddedValue]);
+
+  const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
+  const staticContent = (
+    <span
+      className="train-ticker-static-flap"
+      style={{
+        ...splitFlapStyle,
+        color: toneColors[tone],
+      }}
+      aria-hidden="true"
+    >
+      {paddedValue}
+    </span>
+  );
+
+  if (!showAnimatedFlap) {
+    return renderHost(
+      staticContent,
+      switchable,
+      paddedValue,
+      () =>
+        setManualReplayVersion(
+          (currentManualReplayVersion) => currentManualReplayVersion + 1,
+        ),
+    );
+  }
 
   return (
     <SplitFlap

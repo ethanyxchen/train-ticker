@@ -67,13 +67,16 @@ export function TrainTickerApp() {
       return [];
     }
   });
+  const [previousSnapshots, setPreviousSnapshots] = useState<Record<string, JourneySnapshot>>(
+    {},
+  );
   const [snapshots, setSnapshots] = useState<Record<string, JourneySnapshot>>({});
   const [introCycles, setIntroCycles] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pollCycle, setPollCycle] = useState(0);
   const boardStackRef = useRef<HTMLDivElement | null>(null);
   const journeysRef = useRef(journeys);
+  const snapshotsRef = useRef(snapshots);
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
     insetRem: 0,
@@ -84,14 +87,18 @@ export function TrainTickerApp() {
   }, [journeys]);
 
   useEffect(() => {
+    snapshotsRef.current = snapshots;
+  }, [snapshots]);
+
+  useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(journeys));
   }, [journeys]);
 
   const refreshJourneys = useEffectEvent(async (currentJourneys: SavedJourney[]) => {
     if (!currentJourneys.length) {
+      startTransition(() => setPreviousSnapshots({}));
       startTransition(() => setSnapshots({}));
       setError(null);
-      setPollCycle((currentPollCycle) => currentPollCycle + 1);
       return;
     }
 
@@ -112,8 +119,11 @@ export function TrainTickerApp() {
       }
 
       const data = (await response.json()) as { snapshots: JourneySnapshot[] };
+      const nextSnapshots = toSnapshotMap(data.snapshots);
+
       startTransition(() => {
-        setSnapshots(toSnapshotMap(data.snapshots));
+        setPreviousSnapshots(snapshotsRef.current);
+        setSnapshots(nextSnapshots);
       });
     } catch (refreshError) {
       setError(
@@ -123,7 +133,6 @@ export function TrainTickerApp() {
       );
     } finally {
       setRefreshing(false);
-      setPollCycle((currentPollCycle) => currentPollCycle + 1);
     }
   });
 
@@ -216,9 +225,9 @@ export function TrainTickerApp() {
             key={journey.id}
             journey={journey}
             snapshot={snapshots[journey.id]}
+            previousSnapshot={previousSnapshots[journey.id]}
             layout={boardLayout}
             refreshing={refreshing}
-            pollCycle={pollCycle}
             introCycle={introCycles[journey.id]}
             onRemove={() => {
               setJourneys((currentJourneys) =>
@@ -230,6 +239,11 @@ export function TrainTickerApp() {
                 return nextIntroCycles;
               });
               startTransition(() => {
+                setPreviousSnapshots((currentSnapshots) => {
+                  const nextSnapshots = { ...currentSnapshots };
+                  delete nextSnapshots[journey.id];
+                  return nextSnapshots;
+                });
                 setSnapshots((currentSnapshots) => {
                   const nextSnapshots = { ...currentSnapshots };
                   delete nextSnapshots[journey.id];

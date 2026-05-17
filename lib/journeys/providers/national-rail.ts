@@ -82,6 +82,18 @@ interface RailBoardLoadResult {
   unfilteredBoards: DarwinStationBoard[];
 }
 
+export interface RailServiceIdentityCandidate {
+  std?: string;
+  sta?: string;
+  operator?: string;
+  operatorCode?: string;
+  destination?: Array<{
+    locationName?: string;
+    crs?: string;
+  }>;
+  serviceID?: string;
+}
+
 function getRailConnection(): RailConnection | null {
   const proxyUrl = normalizeEnvValue(process.env.DARWIN_RDM_PROXY_URL);
   const consumerKey = normalizeEnvValue(process.env.DARWIN_RDM_CONSUMER_KEY);
@@ -100,6 +112,18 @@ function getRailConnection(): RailConnection | null {
   }
 
   return null;
+}
+
+export function getRailServiceIdentity(service: RailServiceIdentityCandidate) {
+  return (
+    service.serviceID ??
+    [
+      service.std?.trim() ?? "",
+      service.sta?.trim() ?? "",
+      service.destination?.[0]?.crs?.trim().toUpperCase() ?? "",
+      service.operatorCode?.trim().toUpperCase() ?? service.operator?.trim().toUpperCase() ?? "",
+    ].join("|")
+  );
 }
 
 function buildRailHeaders(connection: RailConnection): Record<string, string> {
@@ -479,7 +503,7 @@ function dedupeRailServices(services: DarwinService[]): DarwinService[] {
   const seen = new Set<string>();
 
   return services.filter((service) => {
-    const key = service.serviceID ?? `${service.std ?? ""}-${service.etd ?? ""}-${service.destination?.[0]?.crs ?? ""}-${service.operator ?? ""}`;
+    const key = getRailServiceIdentity(service);
 
     if (seen.has(key)) {
       return false;
@@ -568,7 +592,7 @@ export const nationalRailProvider: JourneyProvider = {
               disruptionContext?.fallback?.liveTone ?? "warn",
             )
           : buildRailFields(firstService, firstArrival),
-      options: departures.map((service, index) => {
+      options: departures.map((service) => {
         const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
         const destinationName =
           findJourneyCallingPoint(service, journey)?.locationName ??
@@ -577,7 +601,7 @@ export const nationalRailProvider: JourneyProvider = {
         const arrival = getJourneyArrival(service, journey);
 
         return {
-          id: service?.serviceID ?? `${journey.id}-${index}`,
+          id: getRailServiceIdentity(service ?? {}),
           title: destinationName,
           scheduledDeparture: service?.std,
           expectedDeparture: service?.etd,

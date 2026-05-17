@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { nationalRailProvider } from "./national-rail.ts";
+import {
+  getRailServiceIdentity,
+  nationalRailProvider,
+} from "./national-rail.ts";
 
 const STP_TO_BEDFORD = {
   id: "journey-1",
@@ -527,3 +530,23 @@ test(
   );
   },
 );
+
+test("falls back to a stable service identity when Darwin omits serviceID", () => {
+  const delayedServiceIdentity = getRailServiceIdentity({
+    std: "10:05",
+    sta: "10:35",
+    operator: "East Midlands Railway",
+    operatorCode: "EM",
+    destination: [{ crs: "BDM", locationName: "Bedford" }],
+  });
+  const onTimeServiceIdentity = getRailServiceIdentity({
+    std: "10:05",
+    sta: "10:35",
+    operator: "East Midlands Railway",
+    operatorCode: "EM",
+    destination: [{ crs: "BDM", locationName: "Bedford" }],
+  });
+
+  assert.equal(delayedServiceIdentity, "10:05|10:35|BDM|EM");
+  assert.equal(delayedServiceIdentity, onTimeServiceIdentity);
+});
