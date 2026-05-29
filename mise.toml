@@ -1,6 +1,5 @@
 [tools]
 node = "24.15.0"
-gcloud = "latest"
 
 [tasks.install]
 description = "Install project dependencies"
