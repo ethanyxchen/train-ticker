@@ -23,6 +23,8 @@ import {
   getBoardWidthRem,
   getTickerRowWidthRem,
   shouldUseCompactBoardLayout,
+  splitFillerTickers,
+  type FillerTickers,
   type ResolvedBoardLayout,
   type BoardTickers,
 } from "@/lib/journeys/board-layout";
@@ -79,12 +81,16 @@ const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardCol
 function getBoardGridStyle(
   tickers: BoardTickers,
   columns: readonly BoardColumn[],
-  fillerTickers: number,
+  fillerTickers: FillerTickers,
 ) {
   const gridColumns = columns.map((column) => getSplitFlapWidth(tickers[column.key]));
 
-  if (fillerTickers > 0) {
-    gridColumns.push(getSplitFlapWidth(fillerTickers));
+  if (fillerTickers.left > 0) {
+    gridColumns.unshift(getSplitFlapWidth(fillerTickers.left));
+  }
+
+  if (fillerTickers.right > 0) {
+    gridColumns.push(getSplitFlapWidth(fillerTickers.right));
   }
 
   return {
@@ -101,14 +107,16 @@ function getBoardFillerTickers({
   columns: readonly BoardColumn[];
   availableRem: number;
 }) {
-  return getFillerTickerCount({
-    availableRem,
-    occupiedRem: getTickerRowWidthRem(
-      columns.map((column) => tickers[column.key]),
-      BOARD_GAP_REM,
-    ),
-    gapRem: BOARD_GAP_REM,
-  });
+  return splitFillerTickers(
+    getFillerTickerCount({
+      availableRem,
+      occupiedRem: getTickerRowWidthRem(
+        columns.map((column) => tickers[column.key]),
+        BOARD_GAP_REM,
+      ),
+      gapRem: BOARD_GAP_REM,
+    }),
+  );
 }
 
 function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
@@ -277,12 +285,13 @@ function BoardHeader({
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
-  fillerTickers: number;
+  fillerTickers: FillerTickers;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
     <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
+      {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
       {columns.map((column) => (
         <div
           key={column.key}
@@ -291,7 +300,7 @@ function BoardHeader({
           {column.label}
         </div>
       ))}
-      {fillerTickers > 0 ? <div aria-hidden="true" /> : null}
+      {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
     </div>
   );
 }
@@ -310,13 +319,21 @@ function BoardGridRow({
   row?: BoardRow;
   animatedCells?: BoardRowAnimationState;
   animationId?: number | string;
-  fillerTickers: number;
+  fillerTickers: FillerTickers;
   switchable?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
     <div className="grid items-center gap-3" style={boardGridStyle}>
+      {fillerTickers.left > 0 ? (
+        <SplitFlapText
+          value=""
+          length={fillerTickers.left}
+          tone="neutral"
+          switchable={false}
+        />
+      ) : null}
       {columns.map((column) => {
         const hasValue = hasBoardCellValue(row, column);
 
@@ -334,10 +351,10 @@ function BoardGridRow({
           />
         );
       })}
-      {fillerTickers > 0 ? (
+      {fillerTickers.right > 0 ? (
         <SplitFlapText
           value=""
-          length={fillerTickers}
+          length={fillerTickers.right}
           tone="neutral"
           switchable={false}
         />

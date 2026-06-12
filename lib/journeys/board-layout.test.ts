@@ -8,6 +8,7 @@ import {
   getTickerRowWidthRem,
   resolveBoardLayout,
   shouldUseCompactBoardLayout,
+  splitFillerTickers,
 } from "./board-layout.ts";
 import { getSplitFlapWidthRem } from "./split-flap-metrics.ts";
 
@@ -116,4 +117,12 @@ test("does not add filler tickers when the row already fills the width", () => {
     }),
     0,
   );
+});
+
+test("splits filler tickers evenly across both row sides", () => {
+  assert.deepEqual(splitFillerTickers(6), { left: 3, right: 3 });
+});
+
+test("puts the extra filler ticker on the right side", () => {
+  assert.deepEqual(splitFillerTickers(5), { left: 2, right: 3 });
 });

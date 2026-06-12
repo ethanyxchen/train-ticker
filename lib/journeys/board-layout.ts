@@ -14,6 +14,11 @@ export interface ResolvedBoardLayout {
   availableRem: number;
 }
 
+export interface FillerTickers {
+  left: number;
+  right: number;
+}
+
 interface ResolveBoardLayoutOptions {
   availableRem: number;
   baseTickers: BoardTickers;
@@ -55,6 +60,13 @@ export function getFillerTickerCount({
   }
 
   return fillerTickers;
+}
+
+export function splitFillerTickers(count: number): FillerTickers {
+  return {
+    left: Math.floor(count / 2),
+    right: Math.ceil(count / 2),
+  };
 }
 
 export function shouldUseCompactBoardLayout(
