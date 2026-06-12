@@ -26,17 +26,3 @@ export function createSavedJourney(journey: JourneyDefinition): SavedJourney {
     name: getJourneyName(journey),
   };
 }
-
-export function normalizeSavedJourneys(journeys: SavedJourney[]) {
-  const uniqueJourneys = new Map<string, SavedJourney>();
-
-  for (const journey of journeys) {
-    const normalizedJourney = createSavedJourney(journey);
-
-    if (!uniqueJourneys.has(normalizedJourney.id)) {
-      uniqueJourneys.set(normalizedJourney.id, normalizedJourney);
-    }
-  }
-
-  return Array.from(uniqueJourneys.values());
-}

@@ -6,14 +6,19 @@ import type {
   JourneyDefinition,
   JourneyLocation,
   JourneySearchResult,
+  SavedJourney,
 } from "@/lib/journeys/types";
 
-interface JourneyFormProps {
-  onAddJourney: (journey: JourneyDefinition) => void;
+interface JourneyCommandMenuProps {
+  currentJourney: SavedJourney | null;
+  open: boolean;
+  onClose: () => void;
+  onSelectJourney: (journey: JourneyDefinition) => void;
 }
 
 interface SearchFieldProps {
   ariaLabel: string;
+  autoFocus?: boolean;
   placeholder: string;
   value: JourneyLocation | null;
   onSelect: (location: JourneyLocation | null) => void;
@@ -39,6 +44,7 @@ export function getNextSearchResultIndex(
 
 function LocationSearchField({
   ariaLabel,
+  autoFocus,
   placeholder,
   value,
   onSelect,
@@ -77,11 +83,6 @@ function LocationSearchField({
         }
 
         const data = (await response.json()) as { results: JourneySearchResult[] };
-        console.info("[journey-search]", {
-          query: trimmedQuery,
-          resultCount: data.results.length,
-          results: data.results,
-        });
         setResults(data.results);
       } catch (fetchError) {
         if (!abortController.signal.aborted) {
@@ -130,6 +131,7 @@ function LocationSearchField({
         aria-expanded={isOpen && visibleResults.length > 0}
         aria-haspopup="listbox"
         autoComplete="off"
+        autoFocus={autoFocus}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -179,12 +181,12 @@ function LocationSearchField({
         }}
         placeholder={placeholder}
         role="combobox"
-        className="h-11 w-full rounded-[0.9rem] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-4 text-sm text-[var(--paper)] outline-none transition placeholder:text-[rgba(247,244,238,0.5)] focus:border-[var(--board-header)]"
+        className="h-12 w-full rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] px-4 text-base text-[var(--paper)] outline-none transition placeholder:text-[rgba(247,244,238,0.46)] focus:border-[var(--board-header)]"
       />
 
       {isOpen && (visibleResults.length > 0 || visibleError) ? (
         <div
-          className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-[1rem] border border-[rgba(255,255,255,0.08)] bg-[#191a1d] shadow-[0_18px_35px_rgba(0,0,0,0.32)]"
+          className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#191a1d] shadow-[0_18px_35px_rgba(0,0,0,0.32)]"
           id={visibleResults.length > 0 ? listboxId : undefined}
           role={visibleResults.length > 0 ? "listbox" : undefined}
         >
@@ -219,61 +221,120 @@ function LocationSearchField({
   );
 }
 
-export function JourneyForm({ onAddJourney }: JourneyFormProps) {
-  const [origin, setOrigin] = useState<JourneyLocation | null>(null);
-  const [destination, setDestination] = useState<JourneyLocation | null>(null);
+export function JourneyCommandMenu({
+  currentJourney,
+  open,
+  onClose,
+  onSelectJourney,
+}: JourneyCommandMenuProps) {
+  if (!open) {
+    return null;
+  }
 
+  return (
+    <JourneyCommandMenuForm
+      key={currentJourney?.id ?? "empty"}
+      currentJourney={currentJourney}
+      onClose={onClose}
+      onSelectJourney={onSelectJourney}
+    />
+  );
+}
+
+function JourneyCommandMenuForm({
+  currentJourney,
+  onClose,
+  onSelectJourney,
+}: Omit<JourneyCommandMenuProps, "open">) {
+  const [origin, setOrigin] = useState<JourneyLocation | null>(
+    currentJourney?.origin ?? null,
+  );
+  const [destination, setDestination] = useState<JourneyLocation | null>(
+    currentJourney?.destination ?? null,
+  );
+  const canClose = currentJourney !== null;
   const canSubmit = Boolean(origin && destination && origin.id !== destination.id);
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-
-        if (!origin || !destination || origin.id === destination.id) {
-          return;
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/72 px-3 py-[12vh] backdrop-blur-sm sm:px-6"
+      onMouseDown={(event) => {
+        if (canClose && event.target === event.currentTarget) {
+          onClose();
         }
-
-        onAddJourney({
-          provider: "national-rail",
-          origin,
-          destination,
-        });
-
-        setOrigin(null);
-        setDestination(null);
       }}
-      className="rounded-[1.25rem] border border-[rgba(17,18,20,0.12)] bg-[#1c1d20] p-2 shadow-[0_14px_40px_rgba(0,0,0,0.16)]"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <LocationSearchField
-          ariaLabel="Origin"
-          key={origin?.id ?? "origin-empty"}
-          value={origin}
-          onSelect={setOrigin}
-          placeholder="Origin: St Pancras or STP"
-        />
+      <form
+        aria-label="Journey search"
+        aria-modal="true"
+        role="dialog"
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && canClose && !event.defaultPrevented) {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        onSubmit={(event) => {
+          event.preventDefault();
 
-        <div className="hidden h-11 items-center px-1 text-[0.9rem] uppercase tracking-[0.16em] text-[var(--board-header)] sm:flex">
-          To
+          if (!origin || !destination || origin.id === destination.id) {
+            return;
+          }
+
+          onSelectJourney({
+            provider: "national-rail",
+            origin,
+            destination,
+          });
+          onClose();
+        }}
+        className="w-full max-w-[44rem] overflow-visible rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#111214] shadow-[0_30px_80px_rgba(0,0,0,0.46)]"
+      >
+        <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4 py-3">
+          <div>
+            <div className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--board-header)]">
+              Journey
+            </div>
+            <div className="text-lg text-[var(--paper)]">Find a train board</div>
+          </div>
+          {canClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 rounded-md border border-[rgba(255,255,255,0.1)] px-3 text-sm text-[rgba(247,244,238,0.72)] transition hover:border-[rgba(255,255,255,0.2)] hover:text-[var(--paper)]"
+            >
+              Close
+            </button>
+          ) : null}
         </div>
 
-        <LocationSearchField
-          ariaLabel="Destination"
-          key={destination?.id ?? "destination-empty"}
-          value={destination}
-          onSelect={setDestination}
-          placeholder="Destination: Leicester or LEI"
-        />
+        <div className="space-y-3 p-3 sm:p-4">
+          <LocationSearchField
+            ariaLabel="Origin"
+            autoFocus
+            key={origin?.id ?? "origin-empty"}
+            value={origin}
+            onSelect={setOrigin}
+            placeholder="Origin: St Pancras or STP"
+          />
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="h-11 rounded-[0.9rem] bg-[var(--board-header)] px-4 text-sm font-semibold uppercase tracking-[0.12em] text-[#17181a] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[rgba(255,255,255,0.08)] disabled:text-[rgba(247,244,238,0.45)]"
-        >
-          Add
-        </button>
-      </div>
-    </form>
+          <LocationSearchField
+            ariaLabel="Destination"
+            key={destination?.id ?? "destination-empty"}
+            value={destination}
+            onSelect={setDestination}
+            placeholder="Destination: Leicester or LEI"
+          />
+
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="h-12 w-full rounded-lg bg-[var(--board-header)] px-4 text-sm font-semibold uppercase tracking-[0.12em] text-[#111214] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[rgba(255,255,255,0.08)] disabled:text-[rgba(247,244,238,0.42)]"
+          >
+            Open board
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

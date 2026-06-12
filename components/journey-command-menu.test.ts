@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getNextSearchResultIndex } from "./journey-form.tsx";
+import { getNextSearchResultIndex } from "./journey-command-menu.tsx";
 
 test("starts keyboard navigation from the first result when moving down", () => {
   assert.equal(getNextSearchResultIndex(null, "ArrowDown", 3), 0);
