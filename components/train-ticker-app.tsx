@@ -18,7 +18,6 @@ import type {
 } from "@/lib/journeys/types";
 
 const STORAGE_KEY = "train-ticker.journey-definition.v1";
-const BOARD_GAP_REM = 0.75;
 const BOARD_PADDING_REM = 2;
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(
@@ -41,7 +40,7 @@ function hasSameBoardLayout(
     left.tickers.operator === right.tickers.operator &&
     left.tickers.platform === right.tickers.platform &&
     left.tickers.status === right.tickers.status &&
-    left.insetRem === right.insetRem
+    left.availableRem === right.availableRem
   );
 }
 
@@ -83,7 +82,7 @@ export function TrainTickerApp() {
   const snapshotRef = useRef(snapshot);
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
-    insetRem: 0,
+    availableRem: 0,
   });
 
   useEffect(() => {
@@ -220,7 +219,6 @@ export function TrainTickerApp() {
           0,
         ),
         baseTickers: BASE_BOARD_TICKERS,
-        gapRem: BOARD_GAP_REM,
       });
 
       setBoardLayout((currentBoardLayout) =>

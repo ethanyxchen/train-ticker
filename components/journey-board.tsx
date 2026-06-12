@@ -19,7 +19,9 @@ import {
   type BoardRowSnapshot,
 } from "@/lib/journeys/board-row-diff";
 import {
+  getFillerTickerCount,
   getBoardWidthRem,
+  getTickerRowWidthRem,
   shouldUseCompactBoardLayout,
   type ResolvedBoardLayout,
   type BoardTickers,
@@ -77,12 +79,36 @@ const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardCol
 function getBoardGridStyle(
   tickers: BoardTickers,
   columns: readonly BoardColumn[],
+  fillerTickers: number,
 ) {
+  const gridColumns = columns.map((column) => getSplitFlapWidth(tickers[column.key]));
+
+  if (fillerTickers > 0) {
+    gridColumns.push(getSplitFlapWidth(fillerTickers));
+  }
+
   return {
-    gridTemplateColumns: columns
-      .map((column) => getSplitFlapWidth(tickers[column.key]))
-      .join(" "),
+    gridTemplateColumns: gridColumns.join(" "),
   } satisfies CSSProperties;
+}
+
+function getBoardFillerTickers({
+  tickers,
+  columns,
+  availableRem,
+}: {
+  tickers: BoardTickers;
+  columns: readonly BoardColumn[];
+  availableRem: number;
+}) {
+  return getFillerTickerCount({
+    availableRem,
+    occupiedRem: getTickerRowWidthRem(
+      columns.map((column) => tickers[column.key]),
+      BOARD_GAP_REM,
+    ),
+    gapRem: BOARD_GAP_REM,
+  });
 }
 
 function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
@@ -247,11 +273,13 @@ function toBoardRows(
 function BoardHeader({
   tickers,
   columns,
+  fillerTickers,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
+  fillerTickers: number;
 }) {
-  const boardGridStyle = getBoardGridStyle(tickers, columns);
+  const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
     <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
@@ -263,6 +291,7 @@ function BoardHeader({
           {column.label}
         </div>
       ))}
+      {fillerTickers > 0 ? <div aria-hidden="true" /> : null}
     </div>
   );
 }
@@ -273,6 +302,7 @@ function BoardGridRow({
   row,
   animatedCells,
   animationId,
+  fillerTickers,
   switchable = true,
 }: {
   tickers: BoardTickers;
@@ -280,9 +310,10 @@ function BoardGridRow({
   row?: BoardRow;
   animatedCells?: BoardRowAnimationState;
   animationId?: number | string;
+  fillerTickers: number;
   switchable?: boolean;
 }) {
-  const boardGridStyle = getBoardGridStyle(tickers, columns);
+  const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
     <div className="grid items-center gap-3" style={boardGridStyle}>
@@ -303,28 +334,51 @@ function BoardGridRow({
           />
         );
       })}
+      {fillerTickers > 0 ? (
+        <SplitFlapText
+          value=""
+          length={fillerTickers}
+          tone="neutral"
+          switchable={false}
+        />
+      ) : null}
     </div>
   );
 }
 
 function EmptyRow({
   tickers,
+  availableRem,
   compact,
 }: {
   tickers: BoardTickers;
+  availableRem: number;
   compact: boolean;
 }) {
   if (compact) {
+    const firstFillerTickers = getBoardFillerTickers({
+      tickers,
+      columns: COMPACT_BOARD_COLUMNS[0],
+      availableRem,
+    });
+    const secondFillerTickers = getBoardFillerTickers({
+      tickers,
+      columns: COMPACT_BOARD_COLUMNS[1],
+      availableRem,
+    });
+
     return (
       <div className="space-y-2">
         <BoardGridRow
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[0]}
+          fillerTickers={firstFillerTickers}
           switchable={false}
         />
         <BoardGridRow
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[1]}
+          fillerTickers={secondFillerTickers}
           switchable={false}
         />
       </div>
@@ -335,6 +389,11 @@ function EmptyRow({
     <BoardGridRow
       tickers={tickers}
       columns={BOARD_COLUMNS}
+      fillerTickers={getBoardFillerTickers({
+        tickers,
+        columns: BOARD_COLUMNS,
+        availableRem,
+      })}
       switchable={false}
     />
   );
@@ -366,8 +425,22 @@ export function JourneyBoard({
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
-    paddingInline: `${layout.insetRem}rem`,
   } satisfies CSSProperties;
+  const fullBoardFillerTickers = getBoardFillerTickers({
+    tickers: boardTickers,
+    columns: BOARD_COLUMNS,
+    availableRem: layout.availableRem,
+  });
+  const firstCompactFillerTickers = getBoardFillerTickers({
+    tickers: boardTickers,
+    columns: COMPACT_BOARD_COLUMNS[0],
+    availableRem: layout.availableRem,
+  });
+  const secondCompactFillerTickers = getBoardFillerTickers({
+    tickers: boardTickers,
+    columns: COMPACT_BOARD_COLUMNS[1],
+    availableRem: layout.availableRem,
+  });
   const fallbackRowKey = `fallback:${journey.id}`;
   const animateAllFields = introCycle !== undefined && previousSnapshot === undefined;
   const animatedRows = getBoardRowAnimationStates(
@@ -433,10 +506,12 @@ export function JourneyBoard({
                 <BoardHeader
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
+                  fillerTickers={firstCompactFillerTickers}
                 />
                 <BoardHeader
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[1]}
+                  fillerTickers={secondCompactFillerTickers}
                 />
               </div>
 
@@ -451,6 +526,7 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
                       animatedCells={animatedRows[index]}
+                      fillerTickers={firstCompactFillerTickers}
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
@@ -463,6 +539,7 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
                       animatedCells={animatedRows[index]}
+                      fillerTickers={secondCompactFillerTickers}
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
@@ -477,6 +554,7 @@ export function JourneyBoard({
                   <EmptyRow
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
+                    availableRem={layout.availableRem}
                     compact
                   />
                 ))}
@@ -484,7 +562,11 @@ export function JourneyBoard({
             </>
           ) : (
             <>
-              <BoardHeader tickers={boardTickers} columns={BOARD_COLUMNS} />
+              <BoardHeader
+                tickers={boardTickers}
+                columns={BOARD_COLUMNS}
+                fillerTickers={fullBoardFillerTickers}
+              />
 
               <div className="space-y-2">
                 {rows.map((row, index) => (
@@ -494,6 +576,7 @@ export function JourneyBoard({
                     columns={BOARD_COLUMNS}
                     row={row}
                     animatedCells={animatedRows[index]}
+                    fillerTickers={fullBoardFillerTickers}
                     animationId={
                       animatedRows[index] &&
                       (animateAllFields
@@ -507,6 +590,7 @@ export function JourneyBoard({
                   <EmptyRow
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
+                    availableRem={layout.availableRem}
                     compact={false}
                   />
                 ))}
