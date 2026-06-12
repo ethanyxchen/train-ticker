@@ -10,7 +10,11 @@ import {
 } from "@/lib/journeys/split-flap-metrics";
 import {
   SPLIT_FLAP_CHARACTERS,
+  getMaxSplitFlapForwardStepCount,
+  getMaxSplitFlapInitialStepCount,
+  getNextSplitFlapValue,
   getPaddedSplitFlapValue,
+  getSplitFlapValueAfterSteps,
 } from "@/lib/journeys/split-flap-display";
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
 
@@ -33,6 +37,12 @@ type SplitFlapStyle = CSSProperties & {
   "--train-ticker-flap-padding-inline": string;
 };
 
+type DrivenReplayFrame = {
+  value: string;
+  previousValue: string;
+  version: number;
+};
+
 const splitFlapStyle = {
   fontSize: `${SPLIT_FLAP_CELL.fontSizeRem}rem`,
   "--train-ticker-flap-gap": `${SPLIT_FLAP_CELL.gapRem}rem`,
@@ -51,16 +61,6 @@ function getReplayLabel(value: string) {
   const trimmed = value.trim();
 
   return trimmed ? trimmed : "blank";
-}
-
-function getReplayStepValue(value: string) {
-  return Array.from(value, (character) => {
-    const index = SPLIT_FLAP_CHARACTERS.indexOf(character);
-
-    return index === -1
-      ? character
-      : SPLIT_FLAP_CHARACTERS[(index + 1) % SPLIT_FLAP_CHARACTERS.length];
-  }).join("");
 }
 
 function renderHost(
@@ -90,7 +90,35 @@ function renderHost(
 }
 
 function getAnimationDurationMs(length: number) {
-  return Math.max(length, 1) * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
+  return length * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
+}
+
+function getInitialAnimationDurationMs(value: string) {
+  return getAnimationDurationMs(getMaxSplitFlapInitialStepCount(value));
+}
+
+function getForwardAnimationDurationMs(from: string, to: string) {
+  return getAnimationDurationMs(getMaxSplitFlapForwardStepCount(from, to));
+}
+
+function getReplayAnimationTimings(
+  replayStartValue: string | null,
+  targetValue: string,
+) {
+  if (replayStartValue === null) {
+    return {
+      settleDelay: null,
+      clearDelay: getInitialAnimationDurationMs(targetValue),
+    };
+  }
+
+  const settleDelay = getInitialAnimationDurationMs(replayStartValue);
+
+  return {
+    settleDelay,
+    clearDelay:
+      settleDelay + getForwardAnimationDurationMs(replayStartValue, targetValue),
+  };
 }
 
 function getStaticDigitMode(character: string) {
@@ -120,6 +148,73 @@ function renderStaticCharacter(character: string, index: number) {
   );
 }
 
+function renderFlapCharacter(character: string) {
+  return character === " " ? "\u00a0" : character;
+}
+
+function renderAnimatedCharacter(
+  value: string,
+  previousValue: string,
+  index: number,
+  version: number,
+) {
+  return (
+    <span
+      key={index}
+      className="split-flap-digit"
+      data-kind="digit"
+      data-mode={getStaticDigitMode(value)}
+      aria-hidden="true"
+    >
+      <span className="split-flap-part top">
+        <span className="split-flap-char">{renderFlapCharacter(value)}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span className="split-flap-part bottom">
+        <span className="split-flap-char">
+          {renderFlapCharacter(previousValue)}
+        </span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span
+        key={`top-${version}`}
+        className="split-flap-part top animated final"
+      >
+        <span className="split-flap-char">
+          {renderFlapCharacter(previousValue)}
+        </span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span
+        key={`bottom-${version}`}
+        className="split-flap-part bottom animated final"
+      >
+        <span className="split-flap-char">{renderFlapCharacter(value)}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+    </span>
+  );
+}
+
+function renderDrivenReplayContent(frame: DrivenReplayFrame, length: number) {
+  return (
+    <span
+      className="split-flap-display train-ticker-split-flap"
+      style={splitFlapStyle}
+      aria-hidden="true"
+    >
+      {Array.from({ length }, (_, index) =>
+        renderAnimatedCharacter(
+          frame.value[index] ?? " ",
+          frame.previousValue[index] ?? " ",
+          index,
+          frame.version,
+        ),
+      )}
+    </span>
+  );
+}
+
 export function SplitFlapText({
   value,
   length,
@@ -129,6 +224,8 @@ export function SplitFlapText({
 }: SplitFlapTextProps) {
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
   const [transientValue, setTransientValue] = useState<string | null>(null);
+  const [drivenReplayFrame, setDrivenReplayFrame] =
+    useState<DrivenReplayFrame | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
   const [activeAnimationId, setActiveAnimationId] = useState<number | string | null>(
     animationId ?? null,
@@ -168,22 +265,81 @@ export function SplitFlapText({
       setCommittedAnimationId(animationId);
     }
 
-    setActiveAnimationId(nextAnimationId);
-    setTransientValue(
-      manualReplayChanged || !initialExternalAnimation
-        ? getReplayStepValue(paddedValue)
-        : null,
+    if (manualReplayChanged) {
+      let step = 1;
+      let settleTimeoutId: number | undefined;
+      const totalSteps = SPLIT_FLAP_CHARACTERS.length;
+
+      setActiveAnimationId(nextAnimationId);
+      setTransientValue(null);
+      setDrivenReplayFrame({
+        previousValue: paddedValue,
+        value: getSplitFlapValueAfterSteps(paddedValue, step),
+        version: manualReplayVersion * totalSteps + step,
+      });
+
+      const intervalId = window.setInterval(() => {
+        step += 1;
+
+        setDrivenReplayFrame({
+          previousValue: getSplitFlapValueAfterSteps(paddedValue, step - 1),
+          value: getSplitFlapValueAfterSteps(paddedValue, step),
+          version: manualReplayVersion * totalSteps + step,
+        });
+
+        if (step >= totalSteps) {
+          window.clearInterval(intervalId);
+          settleTimeoutId = window.setTimeout(() => {
+            setDrivenReplayFrame(null);
+            setActiveAnimationId((currentAnimationId) =>
+              currentAnimationId === nextAnimationId ? null : currentAnimationId,
+            );
+          }, REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS);
+        }
+      }, SPLIT_FLAP_TIMING_MS);
+
+      return () => {
+        window.clearInterval(intervalId);
+
+        if (settleTimeoutId !== undefined) {
+          window.clearTimeout(settleTimeoutId);
+        }
+      };
+    }
+
+    const replayStartValue =
+      !initialExternalAnimation ? getNextSplitFlapValue(paddedValue) : null;
+    const replayTimings = getReplayAnimationTimings(
+      replayStartValue,
+      paddedValue,
     );
+
+    setActiveAnimationId(nextAnimationId);
+    setDrivenReplayFrame(null);
+    setTransientValue(replayStartValue);
+
+    const settleTimeoutId =
+      replayTimings.settleDelay === null
+        ? undefined
+        : window.setTimeout(() => {
+            setTransientValue(null);
+          }, replayTimings.settleDelay);
 
     const timeoutId = window.setTimeout(() => {
       setTransientValue(null);
       setActiveAnimationId((currentAnimationId) =>
         currentAnimationId === nextAnimationId ? null : currentAnimationId,
       );
-    }, getAnimationDurationMs(length));
+    }, replayTimings.clearDelay);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [animationId, length, manualReplayVersion, paddedValue]);
+    return () => {
+      if (settleTimeoutId !== undefined) {
+        window.clearTimeout(settleTimeoutId);
+      }
+
+      window.clearTimeout(timeoutId);
+    };
+  }, [animationId, manualReplayVersion, paddedValue]);
 
   const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
   const staticContent = (
@@ -199,6 +355,18 @@ export function SplitFlapText({
   if (!showAnimatedFlap) {
     return renderHost(
       staticContent,
+      switchable,
+      paddedValue,
+      () =>
+        setManualReplayVersion(
+          (currentManualReplayVersion) => currentManualReplayVersion + 1,
+        ),
+    );
+  }
+
+  if (drivenReplayFrame !== null) {
+    return renderHost(
+      renderDrivenReplayContent(drivenReplayFrame, length),
       switchable,
       paddedValue,
       () =>

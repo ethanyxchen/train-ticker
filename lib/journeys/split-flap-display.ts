@@ -14,6 +14,48 @@ export function normalizeSplitFlapCharacter(value: string) {
   return SPLIT_FLAP_CHARACTER_SET.has(normalized) ? normalized : " ";
 }
 
+function getSplitFlapCharacterIndex(character: string) {
+  return SPLIT_FLAP_CHARACTERS.indexOf(normalizeSplitFlapCharacter(character));
+}
+
+export function getSplitFlapValueAfterSteps(value: string, steps: number) {
+  return Array.from(value, (character) => {
+    const index = getSplitFlapCharacterIndex(character);
+
+    return SPLIT_FLAP_CHARACTERS[
+      (index + steps) % SPLIT_FLAP_CHARACTERS.length
+    ];
+  }).join("");
+}
+
+export function getNextSplitFlapValue(value: string) {
+  return getSplitFlapValueAfterSteps(value, 1);
+}
+
+export function getMaxSplitFlapInitialStepCount(value: string) {
+  return Math.max(
+    ...Array.from(value, (character) => getSplitFlapCharacterIndex(character) + 1),
+    0,
+  );
+}
+
+export function getMaxSplitFlapForwardStepCount(from: string, to: string) {
+  const length = Math.max(from.length, to.length);
+
+  return Math.max(
+    ...Array.from({ length }, (_, index) => {
+      const fromIndex = getSplitFlapCharacterIndex(from[index] ?? " ");
+      const toIndex = getSplitFlapCharacterIndex(to[index] ?? " ");
+
+      return (
+        (toIndex - fromIndex + SPLIT_FLAP_CHARACTERS.length) %
+        SPLIT_FLAP_CHARACTERS.length
+      );
+    }),
+    0,
+  );
+}
+
 export function getPaddedSplitFlapValue(
   value: string,
   length: number,
