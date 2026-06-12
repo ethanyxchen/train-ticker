@@ -7,6 +7,7 @@ import {
   getMaxSplitFlapInitialStepCount,
   getNextSplitFlapValue,
   getPaddedSplitFlapValue,
+  getSplitFlapValueAfterSteps,
   normalizeSplitFlapCharacter,
 } from "./split-flap-display.ts";
 
@@ -31,6 +32,11 @@ test("collapses unsupported content before handing it to the package", () => {
 test("gets the next split flap value for replay starts", () => {
   assert.equal(getNextSplitFlapValue("CBG"), "DCH");
   assert.equal(getNextSplitFlapValue("- "), " A");
+});
+
+test("gets split flap values after multiple forward steps", () => {
+  assert.equal(getSplitFlapValueAfterSteps("CBG", 2), "EDI");
+  assert.equal(getSplitFlapValueAfterSteps("CBG", SPLIT_FLAP_CHARACTERS.length), "CBG");
 });
 
 test("counts initial split flap steps from the empty cursor", () => {

@@ -14,6 +14,7 @@ import {
   getMaxSplitFlapInitialStepCount,
   getNextSplitFlapValue,
   getPaddedSplitFlapValue,
+  getSplitFlapValueAfterSteps,
 } from "@/lib/journeys/split-flap-display";
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
 
@@ -34,6 +35,12 @@ type SplitFlapStyle = CSSProperties & {
   "--train-ticker-flap-height": string;
   "--train-ticker-flap-radius": string;
   "--train-ticker-flap-padding-inline": string;
+};
+
+type DrivenReplayFrame = {
+  value: string;
+  previousValue: string;
+  version: number;
 };
 
 const splitFlapStyle = {
@@ -141,6 +148,73 @@ function renderStaticCharacter(character: string, index: number) {
   );
 }
 
+function renderFlapCharacter(character: string) {
+  return character === " " ? "\u00a0" : character;
+}
+
+function renderAnimatedCharacter(
+  value: string,
+  previousValue: string,
+  index: number,
+  version: number,
+) {
+  return (
+    <span
+      key={index}
+      className="split-flap-digit"
+      data-kind="digit"
+      data-mode={getStaticDigitMode(value)}
+      aria-hidden="true"
+    >
+      <span className="split-flap-part top">
+        <span className="split-flap-char">{renderFlapCharacter(value)}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span className="split-flap-part bottom">
+        <span className="split-flap-char">
+          {renderFlapCharacter(previousValue)}
+        </span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span
+        key={`top-${version}`}
+        className="split-flap-part top animated final"
+      >
+        <span className="split-flap-char">
+          {renderFlapCharacter(previousValue)}
+        </span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+      <span
+        key={`bottom-${version}`}
+        className="split-flap-part bottom animated final"
+      >
+        <span className="split-flap-char">{renderFlapCharacter(value)}</span>
+        <span className="split-flap-hinge" data-kind="hinge" />
+      </span>
+    </span>
+  );
+}
+
+function renderDrivenReplayContent(frame: DrivenReplayFrame, length: number) {
+  return (
+    <span
+      className="split-flap-display train-ticker-split-flap"
+      style={splitFlapStyle}
+      aria-hidden="true"
+    >
+      {Array.from({ length }, (_, index) =>
+        renderAnimatedCharacter(
+          frame.value[index] ?? " ",
+          frame.previousValue[index] ?? " ",
+          index,
+          frame.version,
+        ),
+      )}
+    </span>
+  );
+}
+
 export function SplitFlapText({
   value,
   length,
@@ -150,6 +224,8 @@ export function SplitFlapText({
 }: SplitFlapTextProps) {
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
   const [transientValue, setTransientValue] = useState<string | null>(null);
+  const [drivenReplayFrame, setDrivenReplayFrame] =
+    useState<DrivenReplayFrame | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
   const [activeAnimationId, setActiveAnimationId] = useState<number | string | null>(
     animationId ?? null,
@@ -189,16 +265,57 @@ export function SplitFlapText({
       setCommittedAnimationId(animationId);
     }
 
+    if (manualReplayChanged) {
+      let step = 1;
+      let settleTimeoutId: number | undefined;
+      const totalSteps = SPLIT_FLAP_CHARACTERS.length;
+
+      setActiveAnimationId(nextAnimationId);
+      setTransientValue(null);
+      setDrivenReplayFrame({
+        previousValue: paddedValue,
+        value: getSplitFlapValueAfterSteps(paddedValue, step),
+        version: manualReplayVersion * totalSteps + step,
+      });
+
+      const intervalId = window.setInterval(() => {
+        step += 1;
+
+        setDrivenReplayFrame({
+          previousValue: getSplitFlapValueAfterSteps(paddedValue, step - 1),
+          value: getSplitFlapValueAfterSteps(paddedValue, step),
+          version: manualReplayVersion * totalSteps + step,
+        });
+
+        if (step >= totalSteps) {
+          window.clearInterval(intervalId);
+          settleTimeoutId = window.setTimeout(() => {
+            setDrivenReplayFrame(null);
+            setActiveAnimationId((currentAnimationId) =>
+              currentAnimationId === nextAnimationId ? null : currentAnimationId,
+            );
+          }, REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS);
+        }
+      }, SPLIT_FLAP_TIMING_MS);
+
+      return () => {
+        window.clearInterval(intervalId);
+
+        if (settleTimeoutId !== undefined) {
+          window.clearTimeout(settleTimeoutId);
+        }
+      };
+    }
+
     const replayStartValue =
-      manualReplayChanged || !initialExternalAnimation
-        ? getNextSplitFlapValue(paddedValue)
-        : null;
+      !initialExternalAnimation ? getNextSplitFlapValue(paddedValue) : null;
     const replayTimings = getReplayAnimationTimings(
       replayStartValue,
       paddedValue,
     );
 
     setActiveAnimationId(nextAnimationId);
+    setDrivenReplayFrame(null);
     setTransientValue(replayStartValue);
 
     const settleTimeoutId =
@@ -238,6 +355,18 @@ export function SplitFlapText({
   if (!showAnimatedFlap) {
     return renderHost(
       staticContent,
+      switchable,
+      paddedValue,
+      () =>
+        setManualReplayVersion(
+          (currentManualReplayVersion) => currentManualReplayVersion + 1,
+        ),
+    );
+  }
+
+  if (drivenReplayFrame !== null) {
+    return renderHost(
+      renderDrivenReplayContent(drivenReplayFrame, length),
       switchable,
       paddedValue,
       () =>

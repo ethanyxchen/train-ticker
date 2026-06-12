@@ -18,12 +18,18 @@ function getSplitFlapCharacterIndex(character: string) {
   return SPLIT_FLAP_CHARACTERS.indexOf(normalizeSplitFlapCharacter(character));
 }
 
-export function getNextSplitFlapValue(value: string) {
+export function getSplitFlapValueAfterSteps(value: string, steps: number) {
   return Array.from(value, (character) => {
     const index = getSplitFlapCharacterIndex(character);
 
-    return SPLIT_FLAP_CHARACTERS[(index + 1) % SPLIT_FLAP_CHARACTERS.length];
+    return SPLIT_FLAP_CHARACTERS[
+      (index + steps) % SPLIT_FLAP_CHARACTERS.length
+    ];
   }).join("");
+}
+
+export function getNextSplitFlapValue(value: string) {
+  return getSplitFlapValueAfterSteps(value, 1);
 }
 
 export function getMaxSplitFlapInitialStepCount(value: string) {
