@@ -1,6 +1,14 @@
 "use client";
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { JourneyCommandMenu } from "@/components/journey-command-menu";
 import { JourneyBoard } from "@/components/journey-board";
@@ -52,25 +60,51 @@ function toJourneyDefinition(journey: SavedJourney): JourneyDefinition {
   };
 }
 
+function subscribeToStoredJourney(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
+function getStoredJourneyValue() {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function getStoredJourneyServerValue() {
+  return undefined;
+}
+
+export function parseStoredJourney(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return createSavedJourney(parseJourneyDefinition(JSON.parse(value)));
+  } catch {
+    return null;
+  }
+}
+
 export function TrainTickerApp() {
-  const [journey, setJourney] = useState<SavedJourney | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) {
-      return null;
-    }
-
-    try {
-      return createSavedJourney(parseJourneyDefinition(JSON.parse(stored)));
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
-  });
+  const storedJourneyValue = useSyncExternalStore(
+    subscribeToStoredJourney,
+    getStoredJourneyValue,
+    getStoredJourneyServerValue,
+  );
+  const storedJourney = useMemo(
+    () => parseStoredJourney(storedJourneyValue),
+    [storedJourneyValue],
+  );
+  const [journeyOverride, setJourneyOverride] = useState<
+    SavedJourney | null | undefined
+  >();
+  const storageLoaded = storedJourneyValue !== undefined;
+  const journey = journeyOverride === undefined ? storedJourney : journeyOverride;
   const [previousSnapshot, setPreviousSnapshot] = useState<JourneySnapshot>();
   const [snapshot, setSnapshot] = useState<JourneySnapshot>();
   const [introCycle, setIntroCycle] = useState(0);
@@ -94,6 +128,10 @@ export function TrainTickerApp() {
   }, [snapshot]);
 
   useEffect(() => {
+    if (!storageLoaded) {
+      return;
+    }
+
     if (journey) {
       window.localStorage.setItem(
         STORAGE_KEY,
@@ -103,7 +141,7 @@ export function TrainTickerApp() {
     }
 
     window.localStorage.removeItem(STORAGE_KEY);
-  }, [journey]);
+  }, [journey, storageLoaded]);
 
   const refreshJourney = useEffectEvent(async (currentJourney: SavedJourney | null) => {
     if (!currentJourney) {
@@ -171,6 +209,10 @@ export function TrainTickerApp() {
   });
 
   useEffect(() => {
+    if (!storageLoaded) {
+      return;
+    }
+
     queueMicrotask(() => {
       void refreshJourney(journey);
     });
@@ -180,7 +222,7 @@ export function TrainTickerApp() {
     }, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [journey]);
+  }, [journey, storageLoaded]);
 
   useEffect(() => {
     function openCommandMenu(event: KeyboardEvent) {
@@ -264,7 +306,7 @@ export function TrainTickerApp() {
             onClearJourney={() => {
               journeyRef.current = null;
               snapshotRef.current = undefined;
-              setJourney(null);
+              setJourneyOverride(null);
               setIntroCycle(0);
               startTransition(() => {
                 setPreviousSnapshot(undefined);
@@ -278,14 +320,14 @@ export function TrainTickerApp() {
 
       <JourneyCommandMenu
         currentJourney={journey}
-        open={commandMenuOpen || journey === null}
+        open={storageLoaded && (commandMenuOpen || journey === null)}
         onClose={() => setCommandMenuOpen(false)}
         onSelectJourney={(definition) => {
           const nextJourney = createSavedJourney(definition);
 
           journeyRef.current = nextJourney;
           snapshotRef.current = undefined;
-          setJourney(nextJourney);
+          setJourneyOverride(nextJourney);
           setIntroCycle((currentIntroCycle) => currentIntroCycle + 1);
           startTransition(() => {
             setPreviousSnapshot(undefined);
