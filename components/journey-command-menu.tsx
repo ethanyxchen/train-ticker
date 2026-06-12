@@ -199,7 +199,11 @@ function LocationSearchField({
               type="button"
               aria-selected={visibleActiveIndex === index}
               id={`${listboxId}-option-${index}`}
-              onMouseDown={() => selectResult(result)}
+              tabIndex={-1}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                selectResult(result);
+              }}
               onMouseEnter={() => setActiveIndex(index)}
               role="option"
               className={`flex w-full flex-col gap-1 border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-left first:border-t-0 ${
@@ -312,7 +316,6 @@ function JourneyCommandMenuForm({
           <LocationSearchField
             ariaLabel="Origin"
             autoFocus
-            key={origin?.id ?? "origin-empty"}
             value={origin}
             onSelect={setOrigin}
             placeholder="Origin: St Pancras or STP"
@@ -320,7 +323,6 @@ function JourneyCommandMenuForm({
 
           <LocationSearchField
             ariaLabel="Destination"
-            key={destination?.id ?? "destination-empty"}
             value={destination}
             onSelect={setDestination}
             placeholder="Destination: Leicester or LEI"
