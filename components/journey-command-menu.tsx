@@ -199,6 +199,7 @@ function LocationSearchField({
               type="button"
               aria-selected={visibleActiveIndex === index}
               id={`${listboxId}-option-${index}`}
+              tabIndex={-1}
               onMouseDown={() => selectResult(result)}
               onMouseEnter={() => setActiveIndex(index)}
               role="option"
