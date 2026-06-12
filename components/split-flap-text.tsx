@@ -10,6 +10,9 @@ import {
 } from "@/lib/journeys/split-flap-metrics";
 import {
   SPLIT_FLAP_CHARACTERS,
+  getMaxSplitFlapForwardStepCount,
+  getMaxSplitFlapInitialStepCount,
+  getNextSplitFlapValue,
   getPaddedSplitFlapValue,
 } from "@/lib/journeys/split-flap-display";
 import type { JourneySnapshotTone } from "@/lib/journeys/types";
@@ -53,16 +56,6 @@ function getReplayLabel(value: string) {
   return trimmed ? trimmed : "blank";
 }
 
-function getReplayStepValue(value: string) {
-  return Array.from(value, (character) => {
-    const index = SPLIT_FLAP_CHARACTERS.indexOf(character);
-
-    return index === -1
-      ? character
-      : SPLIT_FLAP_CHARACTERS[(index + 1) % SPLIT_FLAP_CHARACTERS.length];
-  }).join("");
-}
-
 function renderHost(
   children: ReactNode,
   switchable: boolean,
@@ -90,7 +83,35 @@ function renderHost(
 }
 
 function getAnimationDurationMs(length: number) {
-  return Math.max(length, 1) * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
+  return length * SPLIT_FLAP_TIMING_MS + REPLAY_SETTLE_MS + ANIMATION_BUFFER_MS;
+}
+
+function getInitialAnimationDurationMs(value: string) {
+  return getAnimationDurationMs(getMaxSplitFlapInitialStepCount(value));
+}
+
+function getForwardAnimationDurationMs(from: string, to: string) {
+  return getAnimationDurationMs(getMaxSplitFlapForwardStepCount(from, to));
+}
+
+function getReplayAnimationTimings(
+  replayStartValue: string | null,
+  targetValue: string,
+) {
+  if (replayStartValue === null) {
+    return {
+      settleDelay: null,
+      clearDelay: getInitialAnimationDurationMs(targetValue),
+    };
+  }
+
+  const settleDelay = getInitialAnimationDurationMs(replayStartValue);
+
+  return {
+    settleDelay,
+    clearDelay:
+      settleDelay + getForwardAnimationDurationMs(replayStartValue, targetValue),
+  };
 }
 
 function getStaticDigitMode(character: string) {
@@ -168,22 +189,40 @@ export function SplitFlapText({
       setCommittedAnimationId(animationId);
     }
 
-    setActiveAnimationId(nextAnimationId);
-    setTransientValue(
+    const replayStartValue =
       manualReplayChanged || !initialExternalAnimation
-        ? getReplayStepValue(paddedValue)
-        : null,
+        ? getNextSplitFlapValue(paddedValue)
+        : null;
+    const replayTimings = getReplayAnimationTimings(
+      replayStartValue,
+      paddedValue,
     );
+
+    setActiveAnimationId(nextAnimationId);
+    setTransientValue(replayStartValue);
+
+    const settleTimeoutId =
+      replayTimings.settleDelay === null
+        ? undefined
+        : window.setTimeout(() => {
+            setTransientValue(null);
+          }, replayTimings.settleDelay);
 
     const timeoutId = window.setTimeout(() => {
       setTransientValue(null);
       setActiveAnimationId((currentAnimationId) =>
         currentAnimationId === nextAnimationId ? null : currentAnimationId,
       );
-    }, getAnimationDurationMs(length));
+    }, replayTimings.clearDelay);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [animationId, length, manualReplayVersion, paddedValue]);
+    return () => {
+      if (settleTimeoutId !== undefined) {
+        window.clearTimeout(settleTimeoutId);
+      }
+
+      window.clearTimeout(timeoutId);
+    };
+  }, [animationId, manualReplayVersion, paddedValue]);
 
   const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
   const staticContent = (

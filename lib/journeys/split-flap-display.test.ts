@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  SPLIT_FLAP_CHARACTERS,
+  getMaxSplitFlapForwardStepCount,
+  getMaxSplitFlapInitialStepCount,
+  getNextSplitFlapValue,
   getPaddedSplitFlapValue,
   normalizeSplitFlapCharacter,
 } from "./split-flap-display.ts";
@@ -22,4 +26,20 @@ test("pads right-aligned values with leading blanks", () => {
 
 test("collapses unsupported content before handing it to the package", () => {
   assert.equal(getPaddedSplitFlapValue("a*b", 4, "left"), "A B ");
+});
+
+test("gets the next split flap value for replay starts", () => {
+  assert.equal(getNextSplitFlapValue("CBG"), "DCH");
+  assert.equal(getNextSplitFlapValue("- "), " A");
+});
+
+test("counts initial split flap steps from the empty cursor", () => {
+  assert.equal(getMaxSplitFlapInitialStepCount("DCH"), 9);
+});
+
+test("counts forward replay steps through the full character set", () => {
+  assert.equal(
+    getMaxSplitFlapForwardStepCount("DCH", "CBG"),
+    SPLIT_FLAP_CHARACTERS.length - 1,
+  );
 });
