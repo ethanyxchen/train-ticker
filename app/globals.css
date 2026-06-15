@@ -144,9 +144,7 @@ select {
   align-items: center;
   padding-block: 0.72rem;
   padding-inline: 100vw 4rem;
-  background:
-    radial-gradient(circle, #fff9d5 0 24%, #ffe063 25% 42%, transparent 45%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size),
-    linear-gradient(180deg, #fff9d5, #ffd84f);
+  background: radial-gradient(circle, #fffbd2 0 26%, #ffd957 27% 44%, transparent 46%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size);
   background-clip: text;
   color: transparent;
   font-family: var(--font-board), monospace, sans-serif;
@@ -158,10 +156,9 @@ select {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow:
-    0 0 0.08rem rgba(255, 248, 195, 0.86),
-    0 0 0.22rem rgba(255, 205, 64, 0.64),
-    0 0 0.46rem rgba(255, 154, 38, 0.32);
-  filter: saturate(1.08);
+    0 0 0.035rem rgba(255, 251, 210, 0.76),
+    0 0 0.11rem rgba(255, 205, 64, 0.32);
+  filter: saturate(1.02);
 }
 
 .notice-led-item {
@@ -171,30 +168,26 @@ select {
 
 .notice-led-separator {
   margin-inline: 1.2rem;
-  background:
-    radial-gradient(circle, #ffe4d5 0 24%, #ff8a5a 25% 42%, transparent 45%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size),
-    linear-gradient(180deg, #ffd6c7, #ff794a);
+  background: radial-gradient(circle, #ffe4d5 0 26%, #ff8a5a 27% 44%, transparent 46%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size);
   background-clip: text;
   color: transparent;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow:
-    0 0 0.08rem rgba(255, 176, 138, 0.82),
-    0 0 0.28rem rgba(255, 104, 70, 0.48);
+    0 0 0.035rem rgba(255, 206, 188, 0.74),
+    0 0 0.1rem rgba(255, 104, 70, 0.28);
 }
 
 .notice-led-link {
-  background:
-    radial-gradient(circle, #eaffdc 0 24%, #9bed78 25% 42%, transparent 45%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size),
-    linear-gradient(180deg, #eaffdc, #8ce76c);
+  background: radial-gradient(circle, #eaffdc 0 26%, #9bed78 27% 44%, transparent 46%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size);
   background-clip: text;
   color: transparent;
   text-decoration: none;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow:
-    0 0 0.08rem rgba(201, 255, 181, 0.82),
-    0 0 0.28rem rgba(107, 224, 86, 0.45);
+    0 0 0.035rem rgba(222, 255, 210, 0.72),
+    0 0 0.1rem rgba(107, 224, 86, 0.28);
 }
 
 @media (min-width: 640px) {
