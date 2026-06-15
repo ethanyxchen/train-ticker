@@ -12,6 +12,7 @@ import {
   SplitFlapText,
   getSplitFlapWidth,
 } from "@/components/split-flap-text";
+import { NoticeCarousel } from "@/components/notice-carousel";
 import {
   getBoardRowAnimationStates,
   getBoardRowKey,
@@ -611,6 +612,8 @@ export function JourneyBoard({
           )}
         </div>
       </div>
+
+      <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
