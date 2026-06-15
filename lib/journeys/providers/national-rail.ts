@@ -8,7 +8,6 @@ import {
 } from "../provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
 import type { JourneyProvider } from "./base";
-import { loadRailDisruptionContext } from "./national-rail-disruptions";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
   BoardField,
@@ -335,10 +334,7 @@ function buildRailFields(
   ];
 }
 
-function buildNoServiceRailFields(
-  liveValue: string,
-  liveTone: BoardField["tone"],
-): BoardField[] {
+function buildNoServiceRailFields(): BoardField[] {
   return [
     {
       label: "DEP",
@@ -347,8 +343,8 @@ function buildNoServiceRailFields(
     },
     {
       label: "LIVE",
-      value: liveValue,
-      tone: liveTone,
+      value: "NO SERVICE",
+      tone: "warn",
     },
     {
       label: "ARR",
@@ -541,16 +537,7 @@ export const nationalRailProvider: JourneyProvider = {
     );
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
-    const disruptionContext = await loadRailDisruptionContext(
-      journey,
-      dedupeText(
-        departures.map((service) => service.operatorCode?.toUpperCase()),
-      ),
-    );
-    const status =
-      departures.length === 0 && disruptionContext?.fallback
-        ? disruptionContext.fallback.status
-        : pickRailStatus(firstService, firstArrival);
+    const status = pickRailStatus(firstService, firstArrival);
 
     const alerts = dedupeText([
       ...boards.flatMap((currentBoard) =>
@@ -564,33 +551,21 @@ export const nationalRailProvider: JourneyProvider = {
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
-      ...(disruptionContext?.alerts ?? []),
     ]);
 
     return {
       journeyId: journey.id,
       provider: "national-rail",
       status,
-      headline:
-        departures.length === 0 && disruptionContext?.fallback
-          ? disruptionContext.fallback.headline
-          : buildRailHeadline(firstService, firstArrival),
+      headline: buildRailHeadline(firstService, firstArrival),
       subheadline:
-        departures.length === 0 && disruptionContext?.fallback
-          ? disruptionContext.fallback.subheadline
-          : departures.length > 0
-            ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
-            : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
-      refreshedAt:
-        disruptionContext?.refreshedAt ??
-        board.generatedAt ??
-        new Date().toISOString(),
+        departures.length > 0
+          ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
+          : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
+      refreshedAt: board.generatedAt ?? new Date().toISOString(),
       boardFields:
         departures.length === 0
-          ? buildNoServiceRailFields(
-              disruptionContext?.fallback?.liveValue ?? "NO SERVICE",
-              disruptionContext?.fallback?.liveTone ?? "warn",
-            )
+          ? buildNoServiceRailFields()
           : buildRailFields(firstService, firstArrival),
       options: departures.map((service) => {
         const callingPoints = service?.subsequentCallingPoints?.[0]?.callingPoint ?? [];
