@@ -7,6 +7,7 @@ import {
   normalizeEnvValue,
 } from "../provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
+import { filterDisruptionNotices } from "../disruption-notices";
 import type { JourneyProvider } from "./base";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
@@ -539,7 +540,7 @@ export const nationalRailProvider: JourneyProvider = {
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
 
-    const alerts = dedupeText([
+    const alerts = filterDisruptionNotices(dedupeText([
       ...boards.flatMap((currentBoard) =>
         (currentBoard.nrccMessages ?? []).map((message) => message.Value),
       ),
@@ -551,7 +552,7 @@ export const nationalRailProvider: JourneyProvider = {
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
-    ]);
+    ]));
 
     return {
       journeyId: journey.id,
