@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  getNoticeCarouselIndex,
+  getNoticeMarqueeText,
   getNoticeMessages,
 } from "./notice-carousel.tsx";
 
@@ -21,13 +21,22 @@ test("normalizes notice messages for display", () => {
   );
 });
 
-test("cycles notice carousel indices", () => {
-  assert.equal(getNoticeCarouselIndex(0, 1, 3), 1);
-  assert.equal(getNoticeCarouselIndex(2, 1, 3), 0);
-  assert.equal(getNoticeCarouselIndex(0, -1, 3), 2);
-  assert.equal(getNoticeCarouselIndex(1, -1, 3), 0);
+test("joins notices into one marquee message", () => {
+  assert.equal(
+    getNoticeMarqueeText([
+      "Signal failure between London Bridge and East Croydon.",
+      "",
+      "Replacement buses are running.",
+    ]),
+    "Signal failure between London Bridge and East Croydon. ••• Replacement buses are running.",
+  );
 });
 
-test("keeps an empty carousel pinned to the first index", () => {
-  assert.equal(getNoticeCarouselIndex(2, 1, 0), 0);
+test("converts linked notices to readable marquee text", () => {
+  assert.equal(
+    getNoticeMarqueeText([
+      'More details are available from <a href="https://www.nationalrail.co.uk/">National Rail.</a>',
+    ]),
+    "More details are available from National Rail.",
+  );
 });

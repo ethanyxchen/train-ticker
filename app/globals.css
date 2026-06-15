@@ -84,3 +84,136 @@ select {
   padding-inline: var(--train-ticker-flap-padding-inline);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+
+.notice-led-board {
+  --notice-marquee-duration: 28s;
+  position: relative;
+  left: 50%;
+  width: 100vw;
+  margin-top: 1.25rem;
+  transform: translateX(-50%);
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.42)),
+    radial-gradient(circle, rgba(92, 96, 100, 0.42) 0 16%, transparent 18%) 0 0 / 0.42rem 0.42rem,
+    linear-gradient(180deg, #151618, #070809);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.8),
+    0 16px 34px rgba(0, 0, 0, 0.34);
+}
+
+.notice-led-board::before,
+.notice-led-board::after {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  width: 4rem;
+  height: 100%;
+  content: "";
+  pointer-events: none;
+}
+
+.notice-led-board::before {
+  left: 0;
+  background: linear-gradient(90deg, #050607, transparent);
+}
+
+.notice-led-board::after {
+  right: 0;
+  background: linear-gradient(270deg, #050607, transparent);
+}
+
+.notice-led-window {
+  overflow: hidden;
+  border-block: 0.22rem solid #050607;
+}
+
+.notice-led-track {
+  display: flex;
+  width: max-content;
+  min-width: 200%;
+  animation: notice-led-marquee var(--notice-marquee-duration) linear infinite;
+}
+
+.notice-led-message {
+  display: flex;
+  min-width: 100vw;
+  align-items: center;
+  padding-block: 0.65rem;
+  padding-inline: 100vw 4rem;
+  background: radial-gradient(circle, #fff8bd 0 18%, #ffc24c 19% 35%, transparent 38%) 0 0 / 0.34rem 0.34rem;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-board), monospace, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0 0.18rem rgba(255, 91, 62, 0.72),
+    0 0 0.38rem rgba(255, 207, 85, 0.78),
+    0 0 0.85rem rgba(255, 91, 62, 0.5);
+  filter: saturate(1.25);
+}
+
+.notice-led-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.notice-led-separator {
+  margin-inline: 1.2rem;
+  background: radial-gradient(circle, #ffd1c5 0 18%, #ef5f45 19% 35%, transparent 38%) 0 0 / 0.34rem 0.34rem;
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0 0.2rem rgba(239, 95, 69, 0.88),
+    0 0 0.65rem rgba(239, 95, 69, 0.62);
+}
+
+.notice-led-link {
+  background: radial-gradient(circle, #dfffce 0 18%, #76df67 19% 35%, transparent 38%) 0 0 / 0.34rem 0.34rem;
+  background-clip: text;
+  color: transparent;
+  text-decoration: none;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0 0.18rem rgba(74, 255, 105, 0.72),
+    0 0 0.65rem rgba(74, 255, 105, 0.58);
+}
+
+@media (min-width: 640px) {
+  .notice-led-message {
+    font-size: 1.12rem;
+    padding-block: 0.72rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice-led-track {
+    animation: none;
+    transform: translateX(0);
+  }
+
+  .notice-led-message {
+    padding-inline-start: 1rem;
+  }
+}
+
+@keyframes notice-led-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
