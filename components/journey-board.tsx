@@ -45,8 +45,6 @@ interface JourneyBoardProps {
   layout: ResolvedBoardLayout;
   refreshing: boolean;
   introAnimationId?: number | string;
-  onChangeJourney: () => void;
-  onClearJourney: () => void;
 }
 
 type BoardRow = BoardRowSnapshot & {
@@ -420,8 +418,6 @@ export function JourneyBoard({
   layout,
   refreshing,
   introAnimationId,
-  onChangeJourney,
-  onClearJourney,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
@@ -616,7 +612,7 @@ export function JourneyBoard({
 
       <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+      <div className="mt-4 flex items-center justify-end">
         <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
           <span
             className={[
@@ -626,20 +622,6 @@ export function JourneyBoard({
           />
           <span>{refreshing ? "Updating" : "Live"}</span>
         </div>
-        <button
-          type="button"
-          onClick={onChangeJourney}
-          className="h-8 rounded-md border border-[rgba(255,255,255,0.1)] bg-[#141518] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
-        >
-          Change journey
-        </button>
-        <button
-          type="button"
-          onClick={onClearJourney}
-          className="h-8 rounded-md border border-[rgba(255,255,255,0.1)] bg-[#141518] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
-        >
-          Clear board
-        </button>
       </div>
     </section>
   );
