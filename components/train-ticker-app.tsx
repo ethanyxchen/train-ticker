@@ -349,37 +349,39 @@ export function TrainTickerApp({
         </div>
       </div>
 
-      <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
-        <div>
-          <span aria-label="Command key" role="img">
-            &#8984;
-          </span>{" "}
-          + K to search for a journey
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <span>
-            By{" "}
-            <a
-              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
-              href={AUTHOR_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Ethan Chen
-            </a>
-          </span>
-          <span aria-hidden="true">|</span>
-          <span>
-            Live data from{" "}
-            <a
-              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
-              href={LIVE_DATA_SOURCE_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Rail Data Marketplace
-            </a>
-          </span>
+      <footer className="absolute bottom-4 left-0 right-0 z-10 px-3 text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
+        <div className="relative mx-auto flex h-12 w-full max-w-[88rem] items-end px-2 sm:px-0">
+          <div className="absolute left-0 sm:left-2 flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
+            <span>
+              By{" "}
+              <a
+                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                href={AUTHOR_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Ethan Chen
+              </a>
+            </span>
+            <span aria-hidden="true">|</span>
+            <span>
+              Live data from{" "}
+              <a
+                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                href={LIVE_DATA_SOURCE_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Rail Data Marketplace
+              </a>
+            </span>
+          </div>
+          <div className="w-full text-center">
+            <span aria-label="Command key" role="img">
+              &#8984;
+            </span>{" "}
+            + K to search for a journey
+          </div>
         </div>
       </footer>
 
