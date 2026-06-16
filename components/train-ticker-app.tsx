@@ -35,7 +35,6 @@ const BOARD_PADDING_REM = 2;
 const HARD_CODED_ALERT_MESSAGE =
   "Heads-up: service is experiencing an operational alert.";
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
-const BOOLEAN_TRUE_VALUES = /^\s*(1|true|on|yes)\s*$/i;
 const pollIntervalValue = Number.parseInt(
   process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
   10,
@@ -45,12 +44,15 @@ const POLL_INTERVAL_MS =
     ? pollIntervalValue
     : DEFAULT_POLL_INTERVAL_MS;
 
-function isHardCodedAlertEnabled() {
-  return BOOLEAN_TRUE_VALUES.test(process.env.NEXT_PUBLIC_HARD_CODED_ALERTS ?? "");
+interface TrainTickerAppProps {
+  hardCodedAlertEnabled?: boolean;
 }
 
-function getAlertNotices(alerts: readonly string[] | undefined) {
-  if (!isHardCodedAlertEnabled()) {
+function getAlertNotices(
+  alerts: readonly string[] | undefined,
+  hardCodedAlertEnabled: boolean,
+) {
+  if (!hardCodedAlertEnabled) {
     return alerts ?? [];
   }
 
@@ -126,7 +128,9 @@ function parseStoredJourney(
   }
 }
 
-export function TrainTickerApp() {
+export function TrainTickerApp({
+  hardCodedAlertEnabled = false,
+}: TrainTickerAppProps) {
   const storedJourney = useSyncExternalStore(
     subscribeToStoredJourney,
     getStoredJourneySnapshot,
@@ -318,7 +322,9 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <NoticeCarousel notices={getAlertNotices(snapshot?.alerts)} />
+      <NoticeCarousel
+        notices={getAlertNotices(snapshot?.alerts, hardCodedAlertEnabled)}
+      />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
