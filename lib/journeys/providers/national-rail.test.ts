@@ -306,7 +306,7 @@ test(
 );
 
 test(
-  "adds generic notices and departure-prefixed service alerts",
+  "ignores generic notices and keeps departure-prefixed service alerts",
   { concurrency: false },
   async () => {
   await withMockedRailEnvironment({}, async (requests) => {
@@ -405,17 +405,10 @@ test(
       assert.equal(snapshot.headline, "Next matching service on time");
       assert.equal(snapshot.options[0]?.scheduledDeparture, "10:10");
       assert.equal(snapshot.options[0]?.operatorCode, "TL");
-      assert.match(
-        snapshot.alerts.join(" "),
-        /Some trains between London St Pancras International and Bedford may be delayed/,
-      );
-      assert.deepEqual(
-        snapshot.alerts.filter((alert) => alert.startsWith("10:")),
-        [
-          "10:10 - Earlier signalling fault at West Hampstead.",
-          "10:20 - This service has been delayed by a fault with the signalling system.",
-        ],
-      );
+      assert.deepEqual(snapshot.alerts, [
+        "10:10 - Earlier signalling fault at West Hampstead.",
+        "10:20 - This service has been delayed by a fault with the signalling system.",
+      ]);
       assert.equal(
         snapshot.alerts.some((alert) => alert.includes("fewer coaches")),
         false,
