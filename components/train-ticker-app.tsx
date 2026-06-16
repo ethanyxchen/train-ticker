@@ -319,7 +319,7 @@ export function TrainTickerApp() {
         ) : null}
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex justify-center px-3 text-center text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
+      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex justify-center px-3 text-center text-[0.78rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
         <span aria-label="Command key" role="img">
           &#8984;
         </span>{" "}
