@@ -190,10 +190,103 @@ select {
     0 0 0.1rem rgba(107, 224, 86, 0.28);
 }
 
+.journey-live-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at 50% 70%, rgba(39, 57, 67, 0.32), transparent 44%),
+    linear-gradient(180deg, #050607 0%, #050607 38%, #071013 100%);
+}
+
+.journey-live-map::before,
+.journey-live-map::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.journey-live-map::before {
+  z-index: 2;
+  background:
+    linear-gradient(180deg, #050607 0%, rgba(5, 6, 7, 0.88) 20%, rgba(5, 6, 7, 0.12) 50%, rgba(5, 6, 7, 0.5) 100%),
+    radial-gradient(circle at 50% 58%, transparent 0 40%, rgba(5, 6, 7, 0.34) 76%, #050607 100%);
+}
+
+.journey-live-map::after {
+  z-index: 4;
+  background:
+    linear-gradient(90deg, #050607 0%, rgba(5, 6, 7, 0.34) 20%, rgba(5, 6, 7, 0.18) 80%, #050607 100%),
+    radial-gradient(circle at 50% 70%, transparent 0 31%, rgba(223, 186, 75, 0.05) 42%, transparent 70%);
+}
+
+.journey-live-map-canvas,
+.journey-live-map-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.journey-live-map-canvas {
+  opacity: 0.94;
+  filter: saturate(0.88) brightness(0.82) contrast(1.1);
+}
+
+.journey-live-map-canvas canvas {
+  outline: none;
+}
+
+.journey-live-map-canvas .maplibregl-canvas-container,
+.journey-live-map-canvas .maplibregl-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+.journey-live-map-fallback {
+  background:
+    radial-gradient(circle at 42% 18%, rgba(255, 255, 255, 0.11) 0 2%, transparent 2.4%),
+    radial-gradient(circle at 50% 50%, rgba(80, 120, 138, 0.24), transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    #0a1115;
+}
+
+.journey-live-map-attribution {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  display: inline-flex;
+  gap: 0.6rem;
+  color: rgba(247, 244, 238, 0.32);
+  font-family: var(--font-board), monospace, sans-serif;
+  font-size: 0.62rem;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.74);
+}
+
+.journey-live-map-attribution a {
+  color: inherit;
+  text-decoration: none;
+}
+
 @media (min-width: 640px) {
   .notice-led-message {
     font-size: 1.26rem;
     padding-block: 0.78rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .journey-live-map-canvas {
+    opacity: 0.78;
+  }
+
+  .journey-live-map-attribution {
+    display: none;
   }
 }
 

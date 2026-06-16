@@ -63,17 +63,31 @@ type BoardColumn = {
 };
 
 const BOARD_GAP_REM = 1;
+const TIME_COLUMN = { key: "time", label: "Time", align: "right" } as const;
+const ORIGIN_COLUMN = { key: "origin", label: "Origin" } as const;
+const DESTINATION_COLUMN = { key: "destination", label: "Destination" } as const;
+const OPERATOR_COLUMN = { key: "operator", label: "Operator" } as const;
+const PLATFORM_COLUMN = { key: "platform", label: "Platform" } as const;
+const STATUS_COLUMN = { key: "status", label: "Status" } as const;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
-  { key: "time", label: "Time", align: "right" },
-  { key: "origin", label: "Origin" },
-  { key: "destination", label: "Destination" },
-  { key: "operator", label: "Operator" },
-  { key: "platform", label: "Platform" },
-  { key: "status", label: "Status" },
+  TIME_COLUMN,
+  ORIGIN_COLUMN,
+  DESTINATION_COLUMN,
+  OPERATOR_COLUMN,
+  PLATFORM_COLUMN,
+  STATUS_COLUMN,
 ];
 const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardColumn[]] = [
-  BOARD_COLUMNS.slice(0, 3),
-  BOARD_COLUMNS.slice(3),
+  [
+    TIME_COLUMN,
+    ORIGIN_COLUMN,
+    { ...DESTINATION_COLUMN, label: "Dest" },
+  ],
+  [
+    { ...OPERATOR_COLUMN, label: "Oper" },
+    { ...PLATFORM_COLUMN, label: "Plat" },
+    STATUS_COLUMN,
+  ],
 ];
 
 function getBoardGridStyle(
@@ -535,7 +549,6 @@ export function JourneyBoard({
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
                   fillerTickers={firstCompactFillerTickers}
-                  refreshing={refreshing}
                 />
                 <BoardHeader
                   tickers={boardTickers}

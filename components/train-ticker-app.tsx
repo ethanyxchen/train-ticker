@@ -12,6 +12,7 @@ import {
 
 import { JourneyCommandMenu } from "@/components/journey-command-menu";
 import { JourneyBoard } from "@/components/journey-board";
+import { JourneyLiveMap } from "@/components/journey-live-map";
 import { NoticeCarousel } from "@/components/notice-carousel";
 import { BASE_BOARD_TICKERS } from "@/lib/journeys/board-display";
 import {
@@ -295,7 +296,7 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-20 pt-3 sm:px-5 sm:pb-16 sm:pt-5">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-[#050607]">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
@@ -304,21 +305,27 @@ export function TrainTickerApp() {
 
       <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
-      <div
-        className="flex min-h-0 w-full flex-1 items-center"
-        ref={boardStackRef}
-      >
+      <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
-          <JourneyBoard
-            key={journey.id}
-            journey={journey}
-            snapshot={snapshot}
-            previousSnapshot={previousSnapshot}
-            layout={boardLayout}
-            refreshing={refreshing}
-            introAnimationId={introAnimationId}
-          />
+          <JourneyLiveMap journey={journey} />
         ) : null}
+
+        <div
+          className="relative z-20 w-full max-w-[88rem]"
+          ref={boardStackRef}
+        >
+          {journey ? (
+            <JourneyBoard
+              key={journey.id}
+              journey={journey}
+              snapshot={snapshot}
+              previousSnapshot={previousSnapshot}
+              layout={boardLayout}
+              refreshing={refreshing}
+              introAnimationId={introAnimationId}
+            />
+          ) : null}
+        </div>
       </div>
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
