@@ -16,7 +16,6 @@ import type {
 import type {
   GeoJSONSource,
   LngLatBoundsLike,
-  Map as MapTilerMap,
   StyleSpecification,
 } from "@maptiler/sdk";
 
@@ -27,6 +26,7 @@ import type {
 } from "@/lib/journeys/types";
 
 type Coordinates = [number, number];
+type MapLibreMap = InstanceType<typeof import("@maptiler/sdk").MapMLGL>;
 
 type GeoPoint = {
   latitude: number;
@@ -417,7 +417,7 @@ function getServiceFeatureCollection(
   };
 }
 
-function getGeoJsonSource(map: MapTilerMap, sourceId: string) {
+function getGeoJsonSource(map: MapLibreMap, sourceId: string) {
   return map.getSource(sourceId) as GeoJSONSource | undefined;
 }
 
@@ -434,7 +434,7 @@ function getMapPadding(container: HTMLElement) {
 }
 
 function fitJourneyMap(
-  map: MapTilerMap,
+  map: MapLibreMap,
   model: JourneyLiveMapModel,
   container: HTMLElement,
 ) {
@@ -446,7 +446,7 @@ function fitJourneyMap(
   });
 }
 
-function addJourneyMapLayers(map: MapTilerMap, model: JourneyLiveMapModel) {
+function addJourneyMapLayers(map: MapLibreMap, model: JourneyLiveMapModel) {
   map.addSource(MAPTILER_ROUTE_SOURCE_ID, {
     type: "geojson",
     data: getRouteFeatureCollection(model),
@@ -542,7 +542,7 @@ function addJourneyMapLayers(map: MapTilerMap, model: JourneyLiveMapModel) {
 
 export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapTilerMap | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const model = useMemo(
     () => getJourneyLiveMapModel(journey, snapshot),
     [journey, snapshot],
@@ -596,24 +596,18 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
         return;
       }
 
-      const map = new sdk.Map({
-        apiKey: maptilerApiKey,
+      const map = new sdk.MapMLGL({
+        attributionControl: false,
         bearing: 0,
         center: model.center,
         container,
         dragRotate: false,
-        forceNoAttributionControl: true,
-        fullscreenControl: false,
-        geolocateControl: false,
         hash: false,
-        maptilerLogo: false,
+        maplibreLogo: false,
         maxPitch: 0,
-        navigationControl: false,
         pitch: 0,
         pitchWithRotate: false,
-        scaleControl: false,
         style: mapStyle,
-        terrain: false,
       });
 
       mapRef.current = map;
