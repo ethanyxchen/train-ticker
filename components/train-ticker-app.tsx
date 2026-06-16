@@ -29,8 +29,7 @@ import type {
 const STORAGE_KEY = "train-ticker.journey-definition.v1";
 const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
 const AUTHOR_URL = "https://github.com/ethanyxchen";
-const LIVE_DATA_SOURCE_URL =
-  "https://raildata.org.uk/dataProduct/P-d81d6eaf-8060-4467-a339-1c833e50cbbe/specification";
+const LIVE_DATA_SOURCE_URL = "https://raildata.org.uk/";
 const BOARD_PADDING_REM = 2;
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(

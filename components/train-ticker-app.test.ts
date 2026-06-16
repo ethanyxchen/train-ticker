@@ -66,10 +66,5 @@ test("renders the same startup shell before browser storage has loaded", () => {
   assert.equal(serverHtml.includes("Ethan Chen"), true);
   assert.equal(serverHtml.includes("https://github.com/ethanyxchen"), true);
   assert.equal(serverHtml.includes("Rail Data Marketplace"), true);
-  assert.equal(
-    serverHtml.includes(
-      "https://raildata.org.uk/dataProduct/P-d81d6eaf-8060-4467-a339-1c833e50cbbe/specification",
-    ),
-    true,
-  );
+  assert.equal(serverHtml.includes("https://raildata.org.uk/"), true);
 });
