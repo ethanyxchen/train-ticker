@@ -351,7 +351,7 @@ export function TrainTickerApp({
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 px-3 text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
         <div className="relative mx-auto flex h-12 w-full max-w-[88rem] items-end px-2 sm:px-0">
-          <div className="absolute left-0 sm:left-2 flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
+          <div className="absolute left-0 sm:left-2 flex flex-wrap items-center justify-start gap-x-2 gap-y-1 text-[0.6rem]">
             <span>
               By{" "}
               <a
