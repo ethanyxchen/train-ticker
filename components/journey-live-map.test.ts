@@ -9,6 +9,7 @@ import {
   getJourneyLiveMapModel,
 } from "./journey-live-map.tsx";
 import { createSavedJourney } from "@/lib/journeys/identity";
+import type { JourneySnapshot } from "@/lib/journeys/types";
 
 const journey = createSavedJourney({
   provider: "national-rail",
@@ -21,17 +22,54 @@ const journey = createSavedJourney({
     label: "Leicester",
   },
 });
+const snapshot: JourneySnapshot = {
+  journeyId: journey.id,
+  provider: "national-rail",
+  status: "ok",
+  headline: "Next matching service on time",
+  subheadline: journey.name,
+  refreshedAt: "2026-04-19T09:55:00Z",
+  boardFields: [],
+  options: [],
+  alerts: [],
+  routeStops: [
+    journey.origin,
+    {
+      id: "WHP",
+      label: "West Hampstead Thameslink",
+    },
+    {
+      id: "LUT",
+      label: "Luton",
+    },
+    journey.destination,
+  ],
+};
 
-test("builds a selected journey route with dummy active services", () => {
-  const model = getJourneyLiveMapModel(journey);
+test("builds a selected journey route through every live stop", () => {
+  const model = getJourneyLiveMapModel(journey, snapshot);
 
   assert.equal(model.routeLabel, "STP / LEI");
   assert.equal(model.stations.at(0)?.label, journey.origin.label);
   assert.equal(model.stations.at(-1)?.label, journey.destination.label);
   assert.equal(model.stations.at(0)?.terminal, true);
   assert.equal(model.stations.at(-1)?.terminal, true);
+  assert.deepEqual(
+    model.stations.map((station) => station.label),
+    [
+      "London St Pancras International",
+      "West Hampstead Thameslink",
+      "Luton",
+      "Leicester",
+    ],
+  );
   assert.equal(model.services.length, 5);
-  assert.equal(model.routeCoordinates.length, 72);
+  assert.deepEqual(model.routeCoordinates, [
+    [-0.126361, 51.531921],
+    [-0.1924, 51.548644],
+    [-0.414881, 51.882233],
+    [-1.125274, 52.631397],
+  ]);
   assert.equal(
     model.services.some((service) => service.direction === "inbound"),
     true,
@@ -43,7 +81,7 @@ test("builds a selected journey route with dummy active services", () => {
 });
 
 test("builds dynamic map bounds around the selected journey", () => {
-  const model = getJourneyLiveMapModel(journey);
+  const model = getJourneyLiveMapModel(journey, snapshot);
   const [[west, south], [east, north]] = model.bounds as [
     [number, number],
     [number, number],
@@ -61,6 +99,7 @@ test("renders the selected journey as one map-backed page", () => {
   const html = renderToString(
     React.createElement(JourneyLiveMap, {
       journey,
+      snapshot,
     }),
   );
 

@@ -307,7 +307,7 @@ export function TrainTickerApp() {
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
-          <JourneyLiveMap journey={journey} />
+          <JourneyLiveMap journey={journey} snapshot={snapshot} />
         ) : null}
 
         <div

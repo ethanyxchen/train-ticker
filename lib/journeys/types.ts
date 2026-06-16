@@ -52,6 +52,7 @@ export interface JourneySnapshot {
   headline: string;
   subheadline: string;
   refreshedAt: string;
+  routeStops: JourneyLocation[];
   boardFields: BoardField[];
   options: JourneyOption[];
   alerts: string[];

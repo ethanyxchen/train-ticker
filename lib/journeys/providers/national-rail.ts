@@ -11,6 +11,7 @@ import type { JourneyProvider } from "./base";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
   BoardField,
+  JourneyLocation,
   JourneySnapshot,
   JourneySnapshotStatus,
   SavedJourney,
@@ -143,6 +144,7 @@ function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
     headline: "Darwin credentials required",
     subheadline,
     refreshedAt: new Date().toISOString(),
+    routeStops: getRailRouteStops(undefined, journey),
     boardFields: [
       { label: "FROM", value: journey.origin.id },
       { label: "TO", value: journey.destination.id },
@@ -155,6 +157,62 @@ function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
 
 function getServiceCallingPoints(service?: DarwinService): DarwinCallingPoint[] {
   return service?.subsequentCallingPoints?.flatMap((group) => group.callingPoint ?? []) ?? [];
+}
+
+function getRouteStop(location: JourneyLocation): JourneyLocation {
+  return {
+    id: location.id.trim().toUpperCase(),
+    label: location.label.trim(),
+  };
+}
+
+function getCallingPointRouteStop(
+  callingPoint: DarwinCallingPoint,
+): JourneyLocation | null {
+  const id = callingPoint.crs?.trim().toUpperCase();
+  const label = callingPoint.locationName?.trim();
+
+  return id && label
+    ? {
+        id,
+        label,
+      }
+    : null;
+}
+
+function appendRouteStop(
+  routeStops: JourneyLocation[],
+  routeStop: JourneyLocation | null,
+) {
+  if (!routeStop || routeStops.at(-1)?.id === routeStop.id) {
+    return;
+  }
+
+  routeStops.push(routeStop);
+}
+
+function getRailRouteStops(
+  service: DarwinService | undefined,
+  journey: SavedJourney,
+): JourneyLocation[] {
+  const destinationId = journey.destination.id.trim().toUpperCase();
+  const routeStops = [getRouteStop(journey.origin)];
+
+  for (const callingPoint of getServiceCallingPoints(service)) {
+    const callingPointId = callingPoint.crs?.trim().toUpperCase();
+    const routeStop = getCallingPointRouteStop(callingPoint);
+
+    appendRouteStop(routeStops, routeStop);
+
+    if (callingPointId === destinationId) {
+      appendRouteStop(routeStops, routeStop ?? getRouteStop(journey.destination));
+      return routeStops;
+    }
+  }
+
+  appendRouteStop(routeStops, getRouteStop(journey.destination));
+
+  return routeStops;
 }
 
 function findJourneyCallingPoint(
@@ -540,6 +598,7 @@ export const nationalRailProvider: JourneyProvider = {
     const firstService = departures[0];
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
+    const routeStops = getRailRouteStops(firstService, journey);
 
     const alerts = dedupeText(departures.flatMap(buildRailServiceAlerts));
 
@@ -553,6 +612,7 @@ export const nationalRailProvider: JourneyProvider = {
           ? `${board.locationName ?? journey.origin.label} to ${journey.destination.label}`
           : `No live departures were returned for ${journey.origin.label} to ${journey.destination.label} in the current board window.`,
       refreshedAt: board.generatedAt ?? new Date().toISOString(),
+      routeStops,
       boardFields:
         departures.length === 0
           ? buildNoServiceRailFields()
