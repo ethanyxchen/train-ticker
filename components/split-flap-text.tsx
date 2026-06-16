@@ -54,8 +54,7 @@ const splitFlapStyle = {
 } satisfies SplitFlapStyle;
 
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
-const SPLIT_FLAP_TIMING_MS = 56;
-const SPINNING_SPLIT_FLAP_TIMING_MS = SPLIT_FLAP_TIMING_MS * 2;
+const SPLIT_FLAP_TIMING_MS = 112;
 const REPLAY_SETTLE_MS = 70;
 const ANIMATION_BUFFER_MS = 140;
 
@@ -256,7 +255,7 @@ export function SplitFlapText({
         value: getSplitFlapValueAfterSteps(paddedValue, step),
         version: step,
       });
-    }, SPINNING_SPLIT_FLAP_TIMING_MS);
+    }, SPLIT_FLAP_TIMING_MS);
 
     return () => {
       window.clearInterval(intervalId);
