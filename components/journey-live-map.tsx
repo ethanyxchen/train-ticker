@@ -13,7 +13,12 @@ import type {
   LineString,
   Point,
 } from "geojson";
-import type { GeoJSONSource, LngLatBoundsLike, Map as MapTilerMap } from "@maptiler/sdk";
+import type {
+  GeoJSONSource,
+  LngLatBoundsLike,
+  Map as MapTilerMap,
+  StyleSpecification,
+} from "@maptiler/sdk";
 
 import type {
   JourneyLocation,
@@ -549,11 +554,14 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
 
   useEffect(() => {
     const container = containerRef.current;
+    const apiKey = MAPTILER_API_KEY;
 
-    if (!container || !MAPTILER_API_KEY) {
+    if (!container || !apiKey) {
       return;
     }
 
+    const maptilerApiKey = apiKey;
+    const abortController = new AbortController();
     let animationFrameId = 0;
     let disposed = false;
     let resizeObserver: ResizeObserver | undefined;
@@ -565,8 +573,31 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
         return;
       }
 
+      const styleUrl = new URL(sdk.MapStyle.DATAVIZ.DARK.getExpandedStyleURL());
+      styleUrl.searchParams.set("key", maptilerApiKey);
+
+      let mapStyle: StyleSpecification;
+
+      try {
+        const response = await fetch(styleUrl, {
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        mapStyle = (await response.json()) as StyleSpecification;
+      } catch {
+        return;
+      }
+
+      if (disposed || !container) {
+        return;
+      }
+
       const map = new sdk.Map({
-        apiKey: MAPTILER_API_KEY,
+        apiKey: maptilerApiKey,
         bearing: 0,
         center: model.center,
         container,
@@ -581,7 +612,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
         pitch: 0,
         pitchWithRotate: false,
         scaleControl: false,
-        style: sdk.MapStyle.DATAVIZ.DARK.getExpandedStyleURL(),
+        style: mapStyle,
         terrain: false,
       });
 
@@ -611,6 +642,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
 
     return () => {
       disposed = true;
+      abortController.abort();
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver?.disconnect();
       mapRef.current?.remove();
