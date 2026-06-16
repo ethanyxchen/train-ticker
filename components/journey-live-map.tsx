@@ -581,7 +581,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
         pitch: 0,
         pitchWithRotate: false,
         scaleControl: false,
-        style: sdk.MapStyle.DATAVIZ.DARK,
+        style: sdk.MapStyle.DATAVIZ.DARK.getExpandedStyleURL(),
         terrain: false,
       });
 
