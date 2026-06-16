@@ -29,6 +29,10 @@ run = "mise x zizmor@1.24.1 -- zizmor --no-online-audits --min-severity high .gi
 description = "Run GitHub Actions checks"
 depends = ["actionlint", "zizmor"]
 
+[tasks.secrets-scan]
+description = "Scan for leaked secrets"
+run = "mise x trufflehog@3.95.5 -- trufflehog git file://. --fail --no-update --github-actions --results=verified,unknown"
+
 [tasks.test]
 description = "Run the test suite"
 depends = ["install"]
