@@ -60,5 +60,7 @@ test("renders the same startup shell before browser storage has loaded", () => {
   assert.equal(serverHtml.includes("Journey search"), false);
   assert.equal(serverHtml.includes("Change journey"), false);
   assert.equal(serverHtml.includes("Clear board"), false);
-  assert.equal(serverHtml.includes("Command + K to search for a journey"), true);
+  assert.equal(serverHtml.includes("Command + K"), false);
+  assert.equal(serverHtml.includes('aria-label="Command key"'), true);
+  assert.equal(serverHtml.includes("+ K to search for a journey"), true);
 });

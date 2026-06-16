@@ -12,7 +12,6 @@ import {
   SplitFlapText,
   getSplitFlapWidth,
 } from "@/components/split-flap-text";
-import { NoticeCarousel } from "@/components/notice-carousel";
 import {
   getBoardRowAnimationStates,
   getBoardRowKey,
@@ -43,7 +42,6 @@ interface JourneyBoardProps {
   snapshot: JourneySnapshot | undefined;
   previousSnapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
-  refreshing: boolean;
   introAnimationId?: number | string;
 }
 
@@ -416,7 +414,6 @@ export function JourneyBoard({
   snapshot,
   previousSnapshot,
   layout,
-  refreshing,
   introAnimationId,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
@@ -607,20 +604,6 @@ export function JourneyBoard({
               </div>
             </>
           )}
-        </div>
-      </div>
-
-      <NoticeCarousel notices={snapshot?.alerts ?? []} />
-
-      <div className="mt-4 flex items-center justify-end">
-        <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-          <span
-            className={[
-              "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-            ].join(" ")}
-          />
-          <span>{refreshing ? "Updating" : "Live"}</span>
         </div>
       </div>
     </section>

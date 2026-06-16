@@ -12,6 +12,7 @@ import {
 
 import { JourneyCommandMenu } from "@/components/journey-command-menu";
 import { JourneyBoard } from "@/components/journey-board";
+import { NoticeCarousel } from "@/components/notice-carousel";
 import { BASE_BOARD_TICKERS } from "@/lib/journeys/board-display";
 import {
   resolveBoardLayout,
@@ -292,15 +293,29 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-12 pt-4 sm:px-5 sm:pb-14 sm:pt-6">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-12 pt-3 sm:px-5 sm:pb-14 sm:pt-5">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
         </div>
       ) : null}
 
+      {journey ? (
+        <div className="relative z-10 flex min-h-5 items-center justify-end gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+            ].join(" ")}
+          />
+          <span>{refreshing ? "Updating" : "Live"}</span>
+        </div>
+      ) : null}
+
+      <NoticeCarousel notices={snapshot?.alerts ?? []} />
+
       <div
-        className="flex min-h-[calc(100dvh-4rem)] w-full items-center sm:min-h-[calc(100dvh-5rem)]"
+        className="flex min-h-0 w-full flex-1 items-center"
         ref={boardStackRef}
       >
         {journey ? (
@@ -310,14 +325,16 @@ export function TrainTickerApp() {
             snapshot={snapshot}
             previousSnapshot={previousSnapshot}
             layout={boardLayout}
-            refreshing={refreshing}
             introAnimationId={introAnimationId}
           />
         ) : null}
       </div>
 
       <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex justify-center px-3 text-center text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
-        Command + K to search for a journey
+        <span aria-label="Command key" role="img">
+          &#8984;
+        </span>{" "}
+        + K to search for a journey
       </div>
 
       <JourneyCommandMenu
