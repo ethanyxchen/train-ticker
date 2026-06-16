@@ -361,6 +361,19 @@ test(
             operator: "Thameslink",
             operatorCode: "TL",
             destination: [{ crs: "BDM", locationName: "Bedford" }],
+            subsequentCallingPoints: [
+              {
+                callingPoint: [
+                  {
+                    crs: "BDM",
+                    locationName: "Bedford",
+                    st: "11:12",
+                    et: "On time",
+                    delayReason: "This stop has a separate calling point delay.",
+                  },
+                ],
+              },
+            ],
           },
           {
             serviceID: "tl-1040",
@@ -405,6 +418,10 @@ test(
       );
       assert.equal(
         snapshot.alerts.some((alert) => alert.includes("fewer coaches")),
+        false,
+      );
+      assert.equal(
+        snapshot.alerts.some((alert) => alert.includes("calling point delay")),
         false,
       );
       assert.equal(
