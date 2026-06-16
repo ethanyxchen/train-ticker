@@ -42,6 +42,7 @@ interface JourneyBoardProps {
   snapshot: JourneySnapshot | undefined;
   previousSnapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
+  refreshing: boolean;
   introAnimationId?: number | string;
 }
 
@@ -275,25 +276,43 @@ function BoardHeader({
   tickers,
   columns,
   fillerTickers,
+  refreshing,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
   fillerTickers: FillerTickers;
+  refreshing?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
-    <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
-      {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
-      {columns.map((column) => (
+    <div className="relative">
+      <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
+        {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
+        {columns.map((column) => (
+          <div
+            key={column.key}
+            className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]"
+          >
+            {column.label}
+          </div>
+        ))}
+        {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
+      </div>
+      {refreshing !== undefined ? (
         <div
-          key={column.key}
-          className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]"
+          aria-label={refreshing ? "Updating" : "Live"}
+          className="absolute right-[0.15rem] top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-end"
+          role="status"
         >
-          {column.label}
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+            ].join(" ")}
+          />
         </div>
-      ))}
-      {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
+      ) : null}
     </div>
   );
 }
@@ -414,6 +433,7 @@ export function JourneyBoard({
   snapshot,
   previousSnapshot,
   layout,
+  refreshing,
   introAnimationId,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
@@ -514,6 +534,7 @@ export function JourneyBoard({
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
                   fillerTickers={firstCompactFillerTickers}
+                  refreshing={refreshing}
                 />
                 <BoardHeader
                   tickers={boardTickers}
@@ -573,6 +594,7 @@ export function JourneyBoard({
                 tickers={boardTickers}
                 columns={BOARD_COLUMNS}
                 fillerTickers={fullBoardFillerTickers}
+                refreshing={refreshing}
               />
 
               <div className="space-y-2">

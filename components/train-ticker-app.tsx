@@ -300,18 +300,6 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      {journey ? (
-        <div className="relative z-10 flex min-h-5 items-center justify-end gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-          <span
-            className={[
-              "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-            ].join(" ")}
-          />
-          <span>{refreshing ? "Updating" : "Live"}</span>
-        </div>
-      ) : null}
-
       <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
       <div
@@ -325,6 +313,7 @@ export function TrainTickerApp() {
             snapshot={snapshot}
             previousSnapshot={previousSnapshot}
             layout={boardLayout}
+            refreshing={refreshing}
             introAnimationId={introAnimationId}
           />
         ) : null}
