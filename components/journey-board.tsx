@@ -44,6 +44,7 @@ interface JourneyBoardProps {
   layout: ResolvedBoardLayout;
   refreshing: boolean;
   introAnimationId?: number | string;
+  rowCount?: number;
 }
 
 type BoardRow = BoardRowSnapshot & {
@@ -63,17 +64,31 @@ type BoardColumn = {
 };
 
 const BOARD_GAP_REM = 1;
+const TIME_COLUMN = { key: "time", label: "Time", align: "right" } as const;
+const ORIGIN_COLUMN = { key: "origin", label: "Origin" } as const;
+const DESTINATION_COLUMN = { key: "destination", label: "Destination" } as const;
+const OPERATOR_COLUMN = { key: "operator", label: "Operator" } as const;
+const PLATFORM_COLUMN = { key: "platform", label: "Platform" } as const;
+const STATUS_COLUMN = { key: "status", label: "Status" } as const;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
-  { key: "time", label: "Time", align: "right" },
-  { key: "origin", label: "Origin" },
-  { key: "destination", label: "Destination" },
-  { key: "operator", label: "Operator" },
-  { key: "platform", label: "Platform" },
-  { key: "status", label: "Status" },
+  TIME_COLUMN,
+  ORIGIN_COLUMN,
+  DESTINATION_COLUMN,
+  OPERATOR_COLUMN,
+  PLATFORM_COLUMN,
+  STATUS_COLUMN,
 ];
 const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardColumn[]] = [
-  BOARD_COLUMNS.slice(0, 3),
-  BOARD_COLUMNS.slice(3),
+  [
+    TIME_COLUMN,
+    ORIGIN_COLUMN,
+    { ...DESTINATION_COLUMN, label: "Dest" },
+  ],
+  [
+    { ...OPERATOR_COLUMN, label: "Oper" },
+    { ...PLATFORM_COLUMN, label: "Plat" },
+    STATUS_COLUMN,
+  ],
 ];
 
 function getBoardGridStyle(
@@ -244,13 +259,14 @@ function hasBoardCellValue(row: BoardRow | undefined, column: BoardColumn) {
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
+  rowCount: number,
 ): BoardRow[] {
   if (!snapshot?.options.length) {
     return [buildFallbackRow(journey, snapshot)];
   }
 
   return snapshot.options
-    .slice(0, JOURNEY_BOARD_ROW_COUNT)
+    .slice(0, rowCount)
     .map((option) => {
       const optionStatus = getOptionStatus(snapshot, option);
 
@@ -436,18 +452,20 @@ export function JourneyBoard({
   layout,
   refreshing,
   introAnimationId,
+  rowCount = JOURNEY_BOARD_ROW_COUNT,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = useMemo(
-    () => toBoardRows(journey, snapshot),
-    [journey, snapshot],
+    () => toBoardRows(journey, snapshot, rowCount),
+    [journey, snapshot, rowCount],
   );
   const previousRows = useMemo(
-    () => (previousSnapshot ? toBoardRows(journey, previousSnapshot) : null),
-    [journey, previousSnapshot],
+    () =>
+      previousSnapshot ? toBoardRows(journey, previousSnapshot, rowCount) : null,
+    [journey, previousSnapshot, rowCount],
   );
-  const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
+  const emptyRowCount = Math.max(rowCount - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {
@@ -535,7 +553,6 @@ export function JourneyBoard({
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
                   fillerTickers={firstCompactFillerTickers}
-                  refreshing={refreshing}
                 />
                 <BoardHeader
                   tickers={boardTickers}

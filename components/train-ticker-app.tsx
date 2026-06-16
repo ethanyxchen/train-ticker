@@ -12,6 +12,7 @@ import {
 
 import { JourneyCommandMenu } from "@/components/journey-command-menu";
 import { JourneyBoard } from "@/components/journey-board";
+import { JourneyLiveMap } from "@/components/journey-live-map";
 import { NoticeCarousel } from "@/components/notice-carousel";
 import { BASE_BOARD_TICKERS } from "@/lib/journeys/board-display";
 import {
@@ -31,6 +32,7 @@ const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
 const AUTHOR_URL = "https://github.com/ethanyxchen";
 const LIVE_DATA_SOURCE_URL = "https://raildata.org.uk/";
 const BOARD_PADDING_REM = 2;
+const MAP_BOARD_ROW_COUNT = 3;
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(
   process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
@@ -295,7 +297,7 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-20 pt-3 sm:px-5 sm:pb-16 sm:pt-5">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
@@ -305,20 +307,38 @@ export function TrainTickerApp() {
       <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
       <div
-        className="flex min-h-0 w-full flex-1 items-center"
-        ref={boardStackRef}
+        className="relative flex min-h-0 w-full flex-1 overflow-hidden"
       >
         {journey ? (
-          <JourneyBoard
-            key={journey.id}
+          <JourneyLiveMap
             journey={journey}
             snapshot={snapshot}
-            previousSnapshot={previousSnapshot}
-            layout={boardLayout}
             refreshing={refreshing}
-            introAnimationId={introAnimationId}
           />
         ) : null}
+
+        <div
+          className={[
+            "absolute inset-x-3 bottom-14 z-20 mx-auto max-w-[88rem] sm:inset-x-5 sm:bottom-16",
+            journey
+              ? "rounded-lg border border-[rgba(255,255,255,0.12)] bg-[rgba(7,8,10,0.74)] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:p-3"
+              : "pointer-events-none",
+          ].join(" ")}
+          ref={boardStackRef}
+        >
+          {journey ? (
+            <JourneyBoard
+              key={journey.id}
+              journey={journey}
+              snapshot={snapshot}
+              previousSnapshot={previousSnapshot}
+              layout={boardLayout}
+              refreshing={refreshing}
+              introAnimationId={introAnimationId}
+              rowCount={MAP_BOARD_ROW_COUNT}
+            />
+          ) : null}
+        </div>
       </div>
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
