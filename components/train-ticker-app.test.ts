@@ -63,4 +63,13 @@ test("renders the same startup shell before browser storage has loaded", () => {
   assert.equal(serverHtml.includes("Command + K"), false);
   assert.equal(serverHtml.includes('aria-label="Command key"'), true);
   assert.equal(serverHtml.includes("+ K to search for a journey"), true);
+  assert.equal(serverHtml.includes("Ethan Chen"), true);
+  assert.equal(serverHtml.includes("https://github.com/ethanyxchen"), true);
+  assert.equal(serverHtml.includes("Rail Data Marketplace"), true);
+  assert.equal(
+    serverHtml.includes(
+      "https://raildata.org.uk/dataProduct/P-d81d6eaf-8060-4467-a339-1c833e50cbbe/specification",
+    ),
+    true,
+  );
 });

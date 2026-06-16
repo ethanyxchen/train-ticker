@@ -28,6 +28,9 @@ import type {
 
 const STORAGE_KEY = "train-ticker.journey-definition.v1";
 const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
+const AUTHOR_URL = "https://github.com/ethanyxchen";
+const LIVE_DATA_SOURCE_URL =
+  "https://raildata.org.uk/dataProduct/P-d81d6eaf-8060-4467-a339-1c833e50cbbe/specification";
 const BOARD_PADDING_REM = 2;
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(
@@ -293,7 +296,7 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-12 pt-3 sm:px-5 sm:pb-14 sm:pt-5">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-20 pt-3 sm:px-5 sm:pb-16 sm:pt-5">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
@@ -319,12 +322,39 @@ export function TrainTickerApp() {
         ) : null}
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex justify-center px-3 text-center text-[0.78rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
-        <span aria-label="Command key" role="img">
-          &#8984;
-        </span>{" "}
-        + K to search for a journey
-      </div>
+      <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.64rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6 sm:text-[0.72rem]">
+        <div>
+          <span aria-label="Command key" role="img">
+            &#8984;
+          </span>{" "}
+          + K to search for a journey
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <span>
+            By{" "}
+            <a
+              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+              href={AUTHOR_URL}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Ethan Chen
+            </a>
+          </span>
+          <span aria-hidden="true">|</span>
+          <span>
+            Live data from{" "}
+            <a
+              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+              href={LIVE_DATA_SOURCE_URL}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Rail Data Marketplace
+            </a>
+          </span>
+        </div>
+      </footer>
 
       <JourneyCommandMenu
         currentJourney={journey ?? null}
