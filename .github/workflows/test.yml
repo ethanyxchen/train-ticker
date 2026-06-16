@@ -1,0 +1,44 @@
+name: Test
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          persist-credentials: false
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151
+        with:
+          github_token: ${{ github.token }}
+
+      - name: Run lint
+        run: mise run lint
+
+      - name: Run tests
+        run: mise run test
+
+      - name: Run build
+        run: mise run build
+
+      - name: Run audit
+        run: npm audit
