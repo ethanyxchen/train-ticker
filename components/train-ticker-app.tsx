@@ -12,6 +12,7 @@ import {
 
 import { JourneyCommandMenu } from "@/components/journey-command-menu";
 import { JourneyBoard } from "@/components/journey-board";
+import { NoticeCarousel } from "@/components/notice-carousel";
 import { BASE_BOARD_TICKERS } from "@/lib/journeys/board-display";
 import {
   resolveBoardLayout,
@@ -292,15 +293,17 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 py-4 sm:px-5 sm:py-6">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black px-3 pb-12 pt-3 sm:px-5 sm:pb-14 sm:pt-5">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
         </div>
       ) : null}
 
+      <NoticeCarousel notices={snapshot?.alerts ?? []} />
+
       <div
-        className="flex min-h-[calc(100dvh-2rem)] w-full items-center sm:min-h-[calc(100dvh-3rem)]"
+        className="flex min-h-0 w-full flex-1 items-center"
         ref={boardStackRef}
       >
         {journey ? (
@@ -312,20 +315,15 @@ export function TrainTickerApp() {
             layout={boardLayout}
             refreshing={refreshing}
             introAnimationId={introAnimationId}
-            onChangeJourney={() => setCommandMenuOpen(true)}
-            onClearJourney={() => {
-              journeyRef.current = null;
-              snapshotRef.current = undefined;
-              writeStoredJourney(null);
-              setIntroCycle(0);
-              startTransition(() => {
-                setPreviousSnapshot(undefined);
-                setSnapshot(undefined);
-              });
-              setCommandMenuOpen(true);
-            }}
           />
         ) : null}
+      </div>
+
+      <div className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 flex justify-center px-3 text-center text-[0.78rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
+        <span aria-label="Command key" role="img">
+          &#8984;
+        </span>{" "}
+        + K to search for a journey
       </div>
 
       <JourneyCommandMenu

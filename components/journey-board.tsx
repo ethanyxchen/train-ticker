@@ -12,7 +12,6 @@ import {
   SplitFlapText,
   getSplitFlapWidth,
 } from "@/components/split-flap-text";
-import { NoticeCarousel } from "@/components/notice-carousel";
 import {
   getBoardRowAnimationStates,
   getBoardRowKey,
@@ -45,8 +44,6 @@ interface JourneyBoardProps {
   layout: ResolvedBoardLayout;
   refreshing: boolean;
   introAnimationId?: number | string;
-  onChangeJourney: () => void;
-  onClearJourney: () => void;
 }
 
 type BoardRow = BoardRowSnapshot & {
@@ -65,7 +62,7 @@ type BoardColumn = {
   align?: "left" | "right";
 };
 
-const BOARD_GAP_REM = 0.75;
+const BOARD_GAP_REM = 1;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "time", label: "Time", align: "right" },
   { key: "origin", label: "Origin" },
@@ -96,6 +93,7 @@ function getBoardGridStyle(
 
   return {
     gridTemplateColumns: gridColumns.join(" "),
+    columnGap: `${BOARD_GAP_REM}rem`,
   } satisfies CSSProperties;
 }
 
@@ -279,25 +277,43 @@ function BoardHeader({
   tickers,
   columns,
   fillerTickers,
+  refreshing,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
   fillerTickers: FillerTickers;
+  refreshing?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
-    <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
-      {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
-      {columns.map((column) => (
+    <div className="relative">
+      <div className="grid items-center px-[0.15rem]" style={boardGridStyle}>
+        {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
+        {columns.map((column) => (
+          <div
+            key={column.key}
+            className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]"
+          >
+            {column.label}
+          </div>
+        ))}
+        {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
+      </div>
+      {refreshing !== undefined ? (
         <div
-          key={column.key}
-          className="text-[0.78rem] uppercase tracking-[0.08em] text-[var(--board-header)]"
+          aria-label={refreshing ? "Updating" : "Live"}
+          className="absolute right-[0.15rem] top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-end"
+          role="status"
         >
-          {column.label}
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+            ].join(" ")}
+          />
         </div>
-      ))}
-      {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
+      ) : null}
     </div>
   );
 }
@@ -322,7 +338,7 @@ function BoardGridRow({
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
-    <div className="grid items-center gap-3" style={boardGridStyle}>
+    <div className="grid items-center" style={boardGridStyle}>
       {fillerTickers.left > 0 ? (
         <SplitFlapText
           value=""
@@ -420,8 +436,6 @@ export function JourneyBoard({
   layout,
   refreshing,
   introAnimationId,
-  onChangeJourney,
-  onClearJourney,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
@@ -521,6 +535,7 @@ export function JourneyBoard({
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
                   fillerTickers={firstCompactFillerTickers}
+                  refreshing={refreshing}
                 />
                 <BoardHeader
                   tickers={boardTickers}
@@ -580,6 +595,7 @@ export function JourneyBoard({
                 tickers={boardTickers}
                 columns={BOARD_COLUMNS}
                 fillerTickers={fullBoardFillerTickers}
+                refreshing={refreshing}
               />
 
               <div className="space-y-2">
@@ -612,34 +628,6 @@ export function JourneyBoard({
             </>
           )}
         </div>
-      </div>
-
-      <NoticeCarousel notices={snapshot?.alerts ?? []} />
-
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-        <div className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.48)]">
-          <span
-            className={[
-              "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
-            ].join(" ")}
-          />
-          <span>{refreshing ? "Updating" : "Live"}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onChangeJourney}
-          className="h-8 rounded-md border border-[rgba(255,255,255,0.1)] bg-[#141518] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
-        >
-          Change journey
-        </button>
-        <button
-          type="button"
-          onClick={onClearJourney}
-          className="h-8 rounded-md border border-[rgba(255,255,255,0.1)] bg-[#141518] px-3 text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(247,244,238,0.75)] transition hover:text-[var(--board-header)]"
-        >
-          Clear board
-        </button>
       </div>
     </section>
   );

@@ -91,7 +91,7 @@ select {
   position: relative;
   left: 50%;
   width: 100vw;
-  margin-top: 1.25rem;
+  margin-top: 0.75rem;
   transform: translateX(-50%);
   overflow: hidden;
   border-block: 1px solid rgba(255, 255, 255, 0.12);
