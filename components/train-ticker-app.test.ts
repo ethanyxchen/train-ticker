@@ -18,6 +18,8 @@ const storedJourney = JSON.stringify({
     label: "Leicester",
   },
 });
+const HARD_CODED_ALERT_MESSAGE =
+  "Heads-up: service is experiencing an operational alert.";
 
 function setWindow(value: Window | undefined) {
   if (value === undefined) {
@@ -67,4 +69,14 @@ test("renders the same startup shell before browser storage has loaded", () => {
   assert.equal(serverHtml.includes("https://github.com/ethanyxchen"), true);
   assert.equal(serverHtml.includes("Rail Data Marketplace"), true);
   assert.equal(serverHtml.includes("https://raildata.org.uk/"), true);
+  assert.equal(browserHtml.includes(HARD_CODED_ALERT_MESSAGE), false);
+});
+
+test("renders a hardcoded alert when enabled via prop", () => {
+  const browserHtml = renderToString(
+    React.createElement(TrainTickerApp, { hardCodedAlertEnabled: true }),
+  );
+
+  assert.equal(browserHtml.includes("aria-label=\"Live notices\""), true);
+  assert.equal(browserHtml.includes(HARD_CODED_ALERT_MESSAGE), true);
 });

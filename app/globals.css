@@ -87,11 +87,11 @@ select {
 
 .notice-led-board {
   --notice-marquee-duration: 28s;
-  --notice-led-dot-size: 0.24rem;
+  --notice-led-dot-size: 0.1536rem;
   position: relative;
   left: 50%;
   width: 100vw;
-  margin-top: 0.75rem;
+  margin-top: 0.6rem;
   transform: translateX(-50%);
   overflow: hidden;
   border-block: 1px solid rgba(255, 255, 255, 0.12);
@@ -128,7 +128,7 @@ select {
 
 .notice-led-window {
   overflow: hidden;
-  border-block: 0.22rem solid #050607;
+  border-block: 0.1408rem solid #050607;
 }
 
 .notice-led-track {
@@ -142,13 +142,13 @@ select {
   display: flex;
   min-width: 100vw;
   align-items: center;
-  padding-block: 0.72rem;
+  padding-block: 0.4608rem;
   padding-inline: 100vw 4rem;
   background: radial-gradient(circle, #fffbd2 0 26%, #ffd957 27% 44%, transparent 46%) 0 0 / var(--notice-led-dot-size) var(--notice-led-dot-size);
   background-clip: text;
   color: transparent;
   font-family: var(--font-board), monospace, sans-serif;
-  font-size: 1.16rem;
+  font-size: 0.7424rem;
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -275,8 +275,8 @@ select {
 
 @media (min-width: 640px) {
   .notice-led-message {
-    font-size: 1.26rem;
-    padding-block: 0.78rem;
+    font-size: 1.008rem;
+    padding-block: 0.624rem;
   }
 }
 

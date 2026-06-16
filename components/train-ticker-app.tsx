@@ -32,6 +32,8 @@ const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
 const AUTHOR_URL = "https://github.com/ethanyxchen";
 const LIVE_DATA_SOURCE_URL = "https://raildata.org.uk/";
 const BOARD_PADDING_REM = 2;
+const HARD_CODED_ALERT_MESSAGE =
+  "Heads-up: service is experiencing an operational alert.";
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(
   process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
@@ -41,6 +43,21 @@ const POLL_INTERVAL_MS =
   Number.isFinite(pollIntervalValue) && pollIntervalValue > 0
     ? pollIntervalValue
     : DEFAULT_POLL_INTERVAL_MS;
+
+interface TrainTickerAppProps {
+  hardCodedAlertEnabled?: boolean;
+}
+
+function getAlertNotices(
+  alerts: readonly string[] | undefined,
+  hardCodedAlertEnabled: boolean,
+) {
+  if (!hardCodedAlertEnabled) {
+    return alerts ?? [];
+  }
+
+  return [...(alerts ?? []), HARD_CODED_ALERT_MESSAGE];
+}
 
 function hasSameBoardLayout(
   left: ResolvedBoardLayout,
@@ -111,7 +128,9 @@ function parseStoredJourney(
   }
 }
 
-export function TrainTickerApp() {
+export function TrainTickerApp({
+  hardCodedAlertEnabled = false,
+}: TrainTickerAppProps) {
   const storedJourney = useSyncExternalStore(
     subscribeToStoredJourney,
     getStoredJourneySnapshot,
@@ -303,7 +322,9 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <NoticeCarousel notices={snapshot?.alerts ?? []} />
+      <NoticeCarousel
+        notices={getAlertNotices(snapshot?.alerts, hardCodedAlertEnabled)}
+      />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
@@ -328,37 +349,39 @@ export function TrainTickerApp() {
         </div>
       </div>
 
-      <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
-        <div>
-          <span aria-label="Command key" role="img">
-            &#8984;
-          </span>{" "}
-          + K to search for a journey
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <span>
-            By{" "}
-            <a
-              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
-              href={AUTHOR_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Ethan Chen
-            </a>
-          </span>
-          <span aria-hidden="true">|</span>
-          <span>
-            Live data from{" "}
-            <a
-              className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
-              href={LIVE_DATA_SOURCE_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Rail Data Marketplace
-            </a>
-          </span>
+      <footer className="absolute bottom-4 left-0 right-0 z-10 px-3 text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
+        <div className="relative mx-auto flex h-12 w-full max-w-[88rem] items-end px-2 sm:px-0">
+          <div className="absolute left-0 sm:left-2 flex flex-wrap items-center justify-start gap-x-2 gap-y-1 text-[0.6rem]">
+            <span>
+              By{" "}
+              <a
+                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                href={AUTHOR_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Ethan Chen
+              </a>
+            </span>
+            <span aria-hidden="true">|</span>
+            <span>
+              Live data from{" "}
+              <a
+                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                href={LIVE_DATA_SOURCE_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Rail Data Marketplace
+              </a>
+            </span>
+          </div>
+          <div className="w-full text-center">
+            <span aria-label="Command key" role="img">
+              &#8984;
+            </span>{" "}
+            + K to search for a journey
+          </div>
         </div>
       </footer>
 
