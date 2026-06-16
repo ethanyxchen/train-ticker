@@ -205,9 +205,27 @@ function resolveDarwinRequest(url: URL): Response {
                   {
                     callingPoint: [
                       {
+                        crs: "WHP",
+                        locationName: "West Hampstead Thameslink",
+                        st: "10:18",
+                        et: "On time",
+                      },
+                      {
+                        crs: "LUT",
+                        locationName: "Luton",
+                        st: "10:27",
+                        et: "On time",
+                      },
+                      {
                         crs: "BDM",
                         locationName: "Bedford",
                         st: "10:35",
+                        et: "On time",
+                      },
+                      {
+                        crs: "LEI",
+                        locationName: "Leicester",
+                        st: "11:02",
                         et: "On time",
                       },
                     ],
@@ -301,6 +319,24 @@ test(
     assert.equal(snapshot.options[0]?.title, "Bedford");
     assert.equal(snapshot.options[4]?.operator, "East Midlands Railway");
     assert.equal(snapshot.options[4]?.scheduledDeparture, "10:35");
+    assert.deepEqual(snapshot.routeStops, [
+      {
+        id: "STP",
+        label: "London St Pancras International",
+      },
+      {
+        id: "WHP",
+        label: "West Hampstead Thameslink",
+      },
+      {
+        id: "LUT",
+        label: "Luton",
+      },
+      {
+        id: "BDM",
+        label: "Bedford",
+      },
+    ]);
   });
   },
 );

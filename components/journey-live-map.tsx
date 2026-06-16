@@ -15,7 +15,11 @@ import type {
 } from "geojson";
 import type { GeoJSONSource, LngLatBoundsLike, Map as MapTilerMap } from "@maptiler/sdk";
 
-import type { SavedJourney } from "@/lib/journeys/types";
+import type {
+  JourneyLocation,
+  JourneySnapshot,
+  SavedJourney,
+} from "@/lib/journeys/types";
 
 type Coordinates = [number, number];
 
@@ -63,6 +67,7 @@ export type JourneyLiveMapModel = {
 
 interface JourneyLiveMapProps {
   journey: SavedJourney;
+  snapshot: JourneySnapshot | undefined;
 }
 
 type JourneyLiveMapStyle = CSSProperties & {
@@ -118,25 +123,6 @@ const STATION_COORDINATES = nationalRailStations as readonly NationalRailStation
 const STATION_COORDINATES_BY_CRS = new Map(
   STATION_COORDINATES.map((station) => [station.crsCode, station]),
 );
-const INTERMEDIATE_STATIONS = [
-  "Watford Junction",
-  "Milton Keynes Central",
-  "Rugby",
-  "Nuneaton",
-  "Market Harborough",
-  "Bedford",
-  "Luton Airport Parkway",
-  "St Albans City",
-  "Peterborough",
-  "Stevenage",
-  "Grantham",
-  "Nottingham",
-  "Derby",
-  "Sheffield",
-  "Crewe",
-  "Stafford",
-  "Wolverhampton",
-];
 const ROUTE_PALETTE: readonly RoutePaletteColor[] = [
   { color: "#00a0e2", glow: "rgba(0, 160, 226, 0.42)" },
   { color: "#e32017", glow: "rgba(227, 32, 23, 0.42)" },
@@ -199,63 +185,21 @@ function getRouteLabel(journey: SavedJourney) {
   return `${journey.origin.id.toUpperCase()} / ${journey.destination.id.toUpperCase()}`;
 }
 
-function getIntermediateStationLabels(journey: SavedJourney, count: number) {
-  const start = getJourneyHash(journey.id) % INTERMEDIATE_STATIONS.length;
-
-  return Array.from(
-    { length: count },
-    (_, index) =>
-      INTERMEDIATE_STATIONS[
-        (start + index * 2) % INTERMEDIATE_STATIONS.length
-      ],
-  );
-}
-
-function getJourneyEndpoint(
+function getStationCoordinates(
   stationId: string,
-  fallback: GeoPoint,
-): GeoPoint {
+  fallback?: GeoPoint,
+): Coordinates | null {
   const station = STATION_COORDINATES_BY_CRS.get(stationId.toUpperCase());
 
   if (!station) {
-    return fallback;
+    return fallback ? toCoordinates(fallback) : null;
   }
 
-  return {
-    latitude: station.lat,
-    longitude: station.long,
-  };
+  return [station.long, station.lat];
 }
 
 function toCoordinates(point: GeoPoint): Coordinates {
   return [point.longitude, point.latitude];
-}
-
-function getRouteCurve(origin: Coordinates, destination: Coordinates) {
-  const longitudeDelta = destination[0] - origin[0];
-  const latitudeDelta = destination[1] - origin[1];
-  const bendDirection = longitudeDelta >= 0 ? 1 : -1;
-  const bend =
-    Math.max(Math.abs(longitudeDelta), Math.abs(latitudeDelta)) * 0.18 *
-    bendDirection;
-  const control: Coordinates = [
-    origin[0] + longitudeDelta * 0.5 - bend,
-    origin[1] + latitudeDelta * 0.5 + Math.abs(latitudeDelta) * 0.1,
-  ];
-
-  return Array.from({ length: 72 }, (_, index) => {
-    const t = index / 71;
-    const inverseT = 1 - t;
-
-    return [
-      inverseT * inverseT * origin[0] +
-        2 * inverseT * t * control[0] +
-        t * t * destination[0],
-      inverseT * inverseT * origin[1] +
-        2 * inverseT * t * control[1] +
-        t * t * destination[1],
-    ] satisfies Coordinates;
-  });
 }
 
 function getRouteBounds(routeCoordinates: readonly Coordinates[]): LngLatBoundsLike {
@@ -315,54 +259,64 @@ function getServiceProgress(service: JourneyLiveMapService, nowMs: number) {
   return service.direction === "outbound" ? progress : 1 - progress;
 }
 
-function getStationLabel(
+function getFallbackRouteStops(journey: SavedJourney): JourneyLocation[] {
+  return [journey.origin, journey.destination];
+}
+
+function getJourneyRouteStops(
   journey: SavedJourney,
-  intermediateLabels: readonly string[],
+  snapshot: JourneySnapshot | undefined,
+) {
+  return snapshot?.journeyId === journey.id && snapshot.routeStops.length >= 2
+    ? snapshot.routeStops
+    : getFallbackRouteStops(journey);
+}
+
+function getRouteStopCoordinates(
+  stop: JourneyLocation,
   index: number,
   lastIndex: number,
 ) {
-  if (index === 0) {
-    return journey.origin.label;
-  }
+  const fallback =
+    index === 0
+      ? DEFAULT_ORIGIN
+      : index === lastIndex
+        ? DEFAULT_DESTINATION
+        : undefined;
 
-  if (index === lastIndex) {
-    return journey.destination.label;
-  }
-
-  return intermediateLabels[index - 1] ?? "";
+  return getStationCoordinates(stop.id, fallback);
 }
 
 function getRouteStations(
   journey: SavedJourney,
-  routeCoordinates: readonly Coordinates[],
+  snapshot: JourneySnapshot | undefined,
 ) {
-  const stationIndexes = [0, 24, 47, routeCoordinates.length - 1];
-  const lastStationIndex = stationIndexes.length - 1;
-  const intermediateLabels = getIntermediateStationLabels(
-    journey,
-    Math.max(stationIndexes.length - 2, 0),
-  );
+  const routeStops = getJourneyRouteStops(journey, snapshot);
+  const lastIndex = routeStops.length - 1;
 
-  return stationIndexes.map((routeIndex, index) => ({
-    id: `${journey.id}:station:${index}`,
-    label: getStationLabel(journey, intermediateLabels, index, lastStationIndex),
-    terminal: index === 0 || index === lastStationIndex,
-    coordinates:
-      routeCoordinates[routeIndex] ??
-      routeCoordinates[routeCoordinates.length - 1] ??
-      routeCoordinates[0],
-  }));
+  return routeStops.flatMap((stop, index) => {
+    const coordinates = getRouteStopCoordinates(stop, index, lastIndex);
+
+    return coordinates
+      ? [
+          {
+            id: `${journey.id}:station:${index}`,
+            label: stop.label,
+            terminal: index === 0 || index === lastIndex,
+            coordinates,
+          },
+        ]
+      : [];
+  });
 }
 
-export function getJourneyLiveMapModel(journey: SavedJourney): JourneyLiveMapModel {
+export function getJourneyLiveMapModel(
+  journey: SavedJourney,
+  snapshot: JourneySnapshot | undefined,
+): JourneyLiveMapModel {
   const routePalette = getRoutePalette(journey);
-  const origin = toCoordinates(
-    getJourneyEndpoint(journey.origin.id, DEFAULT_ORIGIN),
-  );
-  const destination = toCoordinates(
-    getJourneyEndpoint(journey.destination.id, DEFAULT_DESTINATION),
-  );
-  const routeCoordinates = getRouteCurve(origin, destination);
+  const stations = getRouteStations(journey, snapshot);
+  const routeCoordinates = stations.map((station) => station.coordinates);
 
   return {
     bounds: getRouteBounds(routeCoordinates),
@@ -371,7 +325,7 @@ export function getJourneyLiveMapModel(journey: SavedJourney): JourneyLiveMapMod
     routeGlow: routePalette.glow,
     routeLabel: getRouteLabel(journey),
     routeCoordinates,
-    stations: getRouteStations(journey, routeCoordinates),
+    stations,
     services: SERVICE_TIMINGS.map((service, index) => ({
       ...service,
       id: `${journey.id}:service:${index + 1}`,
@@ -582,10 +536,13 @@ function addJourneyMapLayers(map: MapTilerMap, model: JourneyLiveMapModel) {
   });
 }
 
-export function JourneyLiveMap({ journey }: JourneyLiveMapProps) {
+export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapTilerMap | null>(null);
-  const model = useMemo(() => getJourneyLiveMapModel(journey), [journey]);
+  const model = useMemo(
+    () => getJourneyLiveMapModel(journey, snapshot),
+    [journey, snapshot],
+  );
   const style: JourneyLiveMapStyle = {
     "--journey-route-color": model.routeColor,
     "--journey-route-glow": model.routeGlow,

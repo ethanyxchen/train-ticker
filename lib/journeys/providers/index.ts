@@ -25,6 +25,7 @@ export async function loadJourneySnapshot(
       subheadline:
         error instanceof Error ? error.message : "An unknown error occurred.",
       refreshedAt: new Date().toISOString(),
+      routeStops: [journey.origin, journey.destination],
       boardFields: [
         { label: "FROM", value: journey.origin.id },
         { label: "TO", value: journey.destination.id },
