@@ -7,6 +7,7 @@ import { renderToString } from "react-dom/server";
 import {
   JourneyLiveMap,
   getJourneyLiveMapModel,
+  getJourneyLiveMapTiles,
 } from "./journey-live-map.tsx";
 import { createSavedJourney } from "@/lib/journeys/identity";
 
@@ -31,6 +32,7 @@ test("builds a selected journey route with dummy active services", () => {
   assert.equal(model.stations.at(0)?.terminal, true);
   assert.equal(model.stations.at(-1)?.terminal, true);
   assert.equal(model.services.length, 5);
+  assert.equal(model.mapAspectRatio > 0, true);
   assert.equal(
     model.services.some((service) => service.direction === "inbound"),
     true,
@@ -42,19 +44,27 @@ test("builds a selected journey route with dummy active services", () => {
   assert.equal(model.routePath.startsWith("M "), true);
 });
 
-test("renders live map chrome for the selected journey", () => {
+test("builds MapTiler UK background tiles", () => {
+  const tiles = getJourneyLiveMapTiles("test-key");
+
+  assert.equal(tiles.length > 0, true);
+  assert.match(tiles[0]?.url ?? "", /api\.maptiler\.com\/maps\/dataviz-dark/);
+  assert.match(tiles[0]?.url ?? "", /key=test-key/);
+  assert.equal(tiles.every((tile) => tile.width > 0 && tile.height > 0), true);
+});
+
+test("renders the selected journey as one map-backed page", () => {
   const html = renderToString(
     React.createElement(JourneyLiveMap, {
       journey,
-      snapshot: undefined,
-      refreshing: false,
     }),
   );
 
   assert.match(html, /London St Pancras International/);
   assert.match(html, /Leicester/);
-  assert.match(html, /MAP/);
-  assert.match(html, /BOARD/);
-  assert.match(html, /LIVE/);
   assert.match(html, /active services/);
+  assert.match(html, /OpenStreetMap contributors/);
+  assert.equal(html.includes("MAP"), false);
+  assert.equal(html.includes("BOARD"), false);
+  assert.equal(html.includes("+"), false);
 });

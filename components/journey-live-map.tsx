@@ -1,17 +1,29 @@
 "use client";
 
+import nationalRailStations from "uk-railway-stations/stations.json";
 import { useId, useMemo, type CSSProperties } from "react";
 
-import type { JourneySnapshot, SavedJourney } from "@/lib/journeys/types";
+import type { SavedJourney } from "@/lib/journeys/types";
 
 type MapPoint = {
   x: number;
   y: number;
 };
 
+type GeoPoint = {
+  latitude: number;
+  longitude: number;
+};
+
 type RoutePaletteColor = {
   color: string;
   glow: string;
+};
+
+type NationalRailStationCoordinate = {
+  crsCode: string;
+  lat: number;
+  long: number;
 };
 
 export type JourneyLiveMapStation = MapPoint & {
@@ -28,56 +40,77 @@ export type JourneyLiveMapService = {
   offsetSeconds: number;
 };
 
+export type JourneyLiveMapTile = {
+  id: string;
+  url: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 export type JourneyLiveMapModel = {
+  mapAspectRatio: number;
   routePath: string;
   routeColor: string;
   routeGlow: string;
   routeLabel: string;
   stations: JourneyLiveMapStation[];
   services: JourneyLiveMapService[];
+  tiles: JourneyLiveMapTile[];
 };
 
 interface JourneyLiveMapProps {
   journey: SavedJourney;
-  snapshot: JourneySnapshot | undefined;
-  refreshing: boolean;
 }
 
 type JourneyLiveMapStyle = CSSProperties & {
+  "--journey-map-aspect-ratio": number;
   "--journey-route-color": string;
   "--journey-route-glow": string;
 };
 
-const ROUTE_POINTS: readonly MapPoint[] = [
-  { x: 9, y: 72 },
-  { x: 20, y: 65 },
-  { x: 31, y: 55 },
-  { x: 44, y: 49 },
-  { x: 58, y: 37 },
-  { x: 74, y: 30 },
-  { x: 88, y: 22 },
-];
-
+const MAPTILER_API_KEY = process.env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim();
+const MAPTILER_MAP_ID = "dataviz-dark";
+const MAPTILER_TILE_SIZE = 256;
+const UK_MAP_ZOOM = 6;
+const UK_MAP_BOUNDS = {
+  west: -9.8,
+  north: 61.2,
+  east: 2.4,
+  south: 49.4,
+} as const;
+const DEFAULT_ORIGIN: GeoPoint = {
+  latitude: 51.531921,
+  longitude: -0.126361,
+};
+const DEFAULT_DESTINATION: GeoPoint = {
+  latitude: 52.631397,
+  longitude: -1.125274,
+};
+const STATION_COORDINATES = nationalRailStations as readonly NationalRailStationCoordinate[];
+const STATION_COORDINATES_BY_CRS = new Map(
+  STATION_COORDINATES.map((station) => [station.crsCode, station]),
+);
 const INTERMEDIATE_STATIONS = [
-  "City Thameslink",
-  "Farringdon",
-  "Blackfriars",
-  "West Hampstead",
-  "Kentish Town",
-  "Mill Hill Broadway",
-  "Radlett",
-  "St Albans City",
-  "Harpenden",
-  "Luton Airport Parkway",
-  "East Croydon",
-  "Gatwick Airport",
-  "Clapham Junction",
-  "Wimbledon",
-  "Surbiton",
   "Watford Junction",
-  "Harrow & Wealdstone",
+  "Milton Keynes Central",
+  "Rugby",
+  "Nuneaton",
+  "Market Harborough",
+  "Bedford",
+  "Luton Airport Parkway",
+  "St Albans City",
+  "Peterborough",
+  "Stevenage",
+  "Grantham",
+  "Nottingham",
+  "Derby",
+  "Sheffield",
+  "Crewe",
+  "Stafford",
+  "Wolverhampton",
 ];
-
 const ROUTE_PALETTE: readonly RoutePaletteColor[] = [
   { color: "#00a0e2", glow: "rgba(0, 160, 226, 0.42)" },
   { color: "#e32017", glow: "rgba(227, 32, 23, 0.42)" },
@@ -86,7 +119,6 @@ const ROUTE_PALETTE: readonly RoutePaletteColor[] = [
   { color: "#9b0056", glow: "rgba(155, 0, 86, 0.44)" },
   { color: "#f3a9bb", glow: "rgba(243, 169, 187, 0.38)" },
 ];
-
 const SERVICE_TIMINGS: readonly Omit<JourneyLiveMapService, "id">[] = [
   {
     direction: "outbound",
@@ -128,6 +160,95 @@ function getJourneyHash(value: string) {
   }
 
   return hash;
+}
+
+function getTilePoint(longitude: number, latitude: number, zoom: number) {
+  const scale = 2 ** zoom;
+  const latitudeRadians = (latitude * Math.PI) / 180;
+
+  return {
+    x: ((longitude + 180) / 360) * scale,
+    y:
+      ((1 -
+        Math.log(
+          Math.tan(latitudeRadians) + 1 / Math.cos(latitudeRadians),
+        ) /
+          Math.PI) /
+        2) *
+      scale,
+  };
+}
+
+function getUkMapView() {
+  const northWest = getTilePoint(
+    UK_MAP_BOUNDS.west,
+    UK_MAP_BOUNDS.north,
+    UK_MAP_ZOOM,
+  );
+  const southEast = getTilePoint(
+    UK_MAP_BOUNDS.east,
+    UK_MAP_BOUNDS.south,
+    UK_MAP_ZOOM,
+  );
+
+  return {
+    northWest,
+    southEast,
+    width: southEast.x - northWest.x,
+    height: southEast.y - northWest.y,
+  };
+}
+
+function projectToUkMap(point: GeoPoint): MapPoint {
+  const view = getUkMapView();
+  const tilePoint = getTilePoint(point.longitude, point.latitude, UK_MAP_ZOOM);
+
+  return {
+    x: ((tilePoint.x - view.northWest.x) / view.width) * 100,
+    y: ((tilePoint.y - view.northWest.y) / view.height) * 100,
+  };
+}
+
+function getMapTilerTileUrl({
+  apiKey,
+  x,
+  y,
+}: {
+  apiKey: string;
+  x: number;
+  y: number;
+}) {
+  return `https://api.maptiler.com/maps/${MAPTILER_MAP_ID}/${MAPTILER_TILE_SIZE}/${UK_MAP_ZOOM}/${x}/${y}.png?key=${encodeURIComponent(apiKey)}`;
+}
+
+export function getJourneyLiveMapTiles(
+  apiKey: string | undefined = MAPTILER_API_KEY,
+): JourneyLiveMapTile[] {
+  if (!apiKey) {
+    return [];
+  }
+
+  const view = getUkMapView();
+  const minX = Math.floor(view.northWest.x);
+  const maxX = Math.floor(view.southEast.x);
+  const minY = Math.floor(view.northWest.y);
+  const maxY = Math.floor(view.southEast.y);
+  const tiles: JourneyLiveMapTile[] = [];
+
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      tiles.push({
+        id: `${UK_MAP_ZOOM}:${x}:${y}`,
+        url: getMapTilerTileUrl({ apiKey, x, y }),
+        left: ((x - view.northWest.x) / view.width) * 100,
+        top: ((y - view.northWest.y) / view.height) * 100,
+        width: (1 / view.width) * 100,
+        height: (1 / view.height) * 100,
+      });
+    }
+  }
+
+  return tiles;
 }
 
 function getRoutePath(points: readonly MapPoint[]) {
@@ -173,6 +294,45 @@ function getRouteLabel(journey: SavedJourney) {
   return `${journey.origin.id.toUpperCase()} / ${journey.destination.id.toUpperCase()}`;
 }
 
+function getJourneyEndpoint(
+  stationId: string,
+  fallback: GeoPoint,
+): GeoPoint {
+  const station = STATION_COORDINATES_BY_CRS.get(stationId.toUpperCase());
+
+  if (!station) {
+    return fallback;
+  }
+
+  return {
+    latitude: station.lat,
+    longitude: station.long,
+  };
+}
+
+function getRoutePoints(journey: SavedJourney) {
+  const origin = projectToUkMap(
+    getJourneyEndpoint(journey.origin.id, DEFAULT_ORIGIN),
+  );
+  const destination = projectToUkMap(
+    getJourneyEndpoint(journey.destination.id, DEFAULT_DESTINATION),
+  );
+  const bend = Math.max(
+    5,
+    Math.min(17, Math.abs(origin.x - destination.x) * 0.34),
+  );
+  const firstMidpoint = {
+    x: origin.x + (destination.x - origin.x) * 0.34 - bend,
+    y: origin.y + (destination.y - origin.y) * 0.34,
+  };
+  const secondMidpoint = {
+    x: origin.x + (destination.x - origin.x) * 0.68 + bend,
+    y: origin.y + (destination.y - origin.y) * 0.68,
+  };
+
+  return [origin, firstMidpoint, secondMidpoint, destination];
+}
+
 function getStationLabel(
   journey: SavedJourney,
   intermediateLabels: readonly string[],
@@ -192,18 +352,21 @@ function getStationLabel(
 
 export function getJourneyLiveMapModel(journey: SavedJourney): JourneyLiveMapModel {
   const routePalette = getRoutePalette(journey);
-  const lastStationIndex = ROUTE_POINTS.length - 1;
+  const routePoints = getRoutePoints(journey);
+  const view = getUkMapView();
+  const lastStationIndex = routePoints.length - 1;
   const intermediateLabels = getIntermediateStationLabels(
     journey,
-    Math.max(ROUTE_POINTS.length - 2, 0),
+    Math.max(routePoints.length - 2, 0),
   );
 
   return {
-    routePath: getRoutePath(ROUTE_POINTS),
+    mapAspectRatio: view.width / view.height,
+    routePath: getRoutePath(routePoints),
     routeColor: routePalette.color,
     routeGlow: routePalette.glow,
     routeLabel: getRouteLabel(journey),
-    stations: ROUTE_POINTS.map((point, index) => ({
+    stations: routePoints.map((point, index) => ({
       ...point,
       id: `${journey.id}:station:${index}`,
       label: getStationLabel(journey, intermediateLabels, index, lastStationIndex),
@@ -213,27 +376,7 @@ export function getJourneyLiveMapModel(journey: SavedJourney): JourneyLiveMapMod
       ...service,
       id: `${journey.id}:service:${index + 1}`,
     })),
-  };
-}
-
-function getMapBuilding(index: number) {
-  const columns = 12;
-  const column = index % columns;
-  const row = Math.floor(index / columns);
-  const x = column * 8.8 + 1.4 + (row % 2) * 1.8;
-  const y = row * 12.4 + 3.5;
-  const distanceFromRoute = Math.abs(y - (82 - x * 0.7));
-
-  if (x > 96 || y > 92 || distanceFromRoute < 6) {
-    return null;
-  }
-
-  return {
-    x,
-    y,
-    width: 4.2 + ((index * 7) % 4),
-    height: 3.6 + ((index * 11) % 5),
-    depth: 1.2 + ((index * 5) % 4) * 0.32,
+    tiles: getJourneyLiveMapTiles(),
   };
 }
 
@@ -341,20 +484,12 @@ function JourneyLiveMapStationMarker({
 }: {
   station: JourneyLiveMapStation;
 }) {
-  const terminalAtStart = station.terminal && station.x < 50;
-  const labelX = station.terminal
-    ? terminalAtStart
-      ? station.x + 3
-      : station.x - 22
-    : station.x + 2.7;
-  const labelY = station.terminal
-    ? terminalAtStart
-      ? station.y - 9
-      : station.y + 3
-    : station.y - 6;
-
   return (
-    <g className="journey-live-map-station">
+    <g
+      aria-label={station.label}
+      className="journey-live-map-station"
+      role="img"
+    >
       <circle
         className={
           station.terminal
@@ -363,81 +498,46 @@ function JourneyLiveMapStationMarker({
         }
         cx={station.x}
         cy={station.y}
-        r={station.terminal ? 2.2 : 1.5}
+        r={station.terminal ? 2.2 : 1.35}
       />
-      <foreignObject
-        className={
-          station.terminal
-            ? "journey-live-map-station-label terminal"
-            : "journey-live-map-station-label"
-        }
-        height={station.terminal ? 10 : 9}
-        width={station.terminal ? 22 : 18}
-        x={labelX}
-        y={labelY}
-      >
-        <span>{station.label}</span>
-      </foreignObject>
     </g>
   );
 }
 
-function JourneyLiveMapBuildings() {
+function JourneyLiveMapTileLayer({
+  tiles,
+}: {
+  tiles: readonly JourneyLiveMapTile[];
+}) {
+  if (tiles.length === 0) {
+    return <div className="journey-live-map-tile-fallback" />;
+  }
+
   return (
-    <g className="journey-live-map-buildings">
-      {Array.from({ length: 96 }, (_, index) => {
-        const building = getMapBuilding(index);
-
-        if (!building) {
-          return null;
-        }
-
-        return (
-          <g key={index} transform={`translate(${building.x} ${building.y})`}>
-            <path
-              className="journey-live-map-building-depth"
-              d={`M 0 ${building.height} L ${building.depth} ${building.height + building.depth} L ${building.width + building.depth} ${building.height + building.depth} L ${building.width} ${building.height} Z`}
-            />
-            <rect
-              className="journey-live-map-building"
-              height={building.height}
-              rx="0.5"
-              width={building.width}
-            />
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-function JourneyLiveMapRoads() {
-  return (
-    <g className="journey-live-map-roads">
-      {Array.from({ length: 8 }, (_, index) => (
-        <path
-          key={`horizontal-${index}`}
-          d={`M -5 ${12 + index * 11} C 24 ${18 + index * 7}, 64 ${6 + index * 10}, 108 ${13 + index * 9}`}
+    <>
+      {tiles.map((tile) => (
+        <div
+          aria-hidden="true"
+          className="journey-live-map-tile"
+          key={tile.id}
+          style={{
+            backgroundImage: `url("${tile.url}")`,
+            height: `${tile.height}%`,
+            left: `${tile.left}%`,
+            top: `${tile.top}%`,
+            width: `${tile.width}%`,
+          }}
         />
       ))}
-      {Array.from({ length: 7 }, (_, index) => (
-        <path
-          key={`vertical-${index}`}
-          d={`M ${6 + index * 15} -4 C ${2 + index * 13} 22, ${14 + index * 12} 62, ${4 + index * 15} 105`}
-        />
-      ))}
-    </g>
+    </>
   );
 }
 
-export function JourneyLiveMap({
-  journey,
-  snapshot,
-  refreshing,
-}: JourneyLiveMapProps) {
+export function JourneyLiveMap({ journey }: JourneyLiveMapProps) {
   const routePathId = `journey-live-map-route-${useId().replace(/:/g, "")}`;
   const model = useMemo(() => getJourneyLiveMapModel(journey), [journey]);
   const style: JourneyLiveMapStyle = {
+    "--journey-map-aspect-ratio": model.mapAspectRatio,
     "--journey-route-color": model.routeColor,
     "--journey-route-glow": model.routeGlow,
   };
@@ -448,50 +548,19 @@ export function JourneyLiveMap({
       className="journey-live-map"
       style={style}
     >
-      <div className="journey-live-map-chrome top-left">
-        <span className="active">MAP</span>
-        <span>BOARD</span>
-      </div>
+      <div className="journey-live-map-viewport">
+        <div className="journey-live-map-tiles" aria-hidden="true">
+          <JourneyLiveMapTileLayer tiles={model.tiles} />
+        </div>
 
-      <div className="journey-live-map-chrome top-right" role="status">
-        <span className={refreshing ? "syncing" : "live"}>
-          {refreshing ? "SYNC" : "LIVE"}
-        </span>
-      </div>
-
-      <div className="journey-live-map-route-card">
-        <span>{model.routeLabel}</span>
-        <strong>{journey.origin.label}</strong>
-        <span>to {journey.destination.label}</span>
-        <span>
-          {model.services.length} active services
-          {snapshot ? ` / ${snapshot.headline}` : ""}
-        </span>
-      </div>
-
-      <div aria-hidden="true" className="journey-live-map-controls">
-        <span>+</span>
-        <span>-</span>
-        <span>3D</span>
-      </div>
-
-      <div className="journey-live-map-canvas">
         <svg
+          aria-label={`${model.routeLabel} active services`}
           className="journey-live-map-svg"
           preserveAspectRatio="none"
           viewBox="0 0 100 100"
         >
-          <path
-            className="journey-live-map-river"
-            d="M -6 88 C 12 80, 19 92, 35 84 C 52 75, 64 90, 82 77 C 94 69, 103 71, 108 68 L 108 106 L -6 106 Z"
-          />
-          <JourneyLiveMapRoads />
-          <JourneyLiveMapBuildings />
           <path className="journey-live-map-track-shadow" d={model.routePath} />
-          <path
-            className="journey-live-map-track-halo"
-            d={model.routePath}
-          />
+          <path className="journey-live-map-track-halo" d={model.routePath} />
           <path
             className="journey-live-map-track"
             d={model.routePath}
@@ -511,7 +580,12 @@ export function JourneyLiveMap({
         </svg>
       </div>
 
-      <div className="journey-live-map-attribution">Journey layer / Open map</div>
+      <div className="journey-live-map-attribution">
+        <a href="https://www.maptiler.com/" rel="noreferrer" target="_blank">
+          © MapTiler
+        </a>
+        <span>© OpenStreetMap contributors</span>
+      </div>
     </section>
   );
 }

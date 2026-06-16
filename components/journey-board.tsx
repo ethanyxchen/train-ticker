@@ -44,7 +44,6 @@ interface JourneyBoardProps {
   layout: ResolvedBoardLayout;
   refreshing: boolean;
   introAnimationId?: number | string;
-  rowCount?: number;
 }
 
 type BoardRow = BoardRowSnapshot & {
@@ -259,14 +258,13 @@ function hasBoardCellValue(row: BoardRow | undefined, column: BoardColumn) {
 function toBoardRows(
   journey: SavedJourney,
   snapshot: JourneySnapshot | undefined,
-  rowCount: number,
 ): BoardRow[] {
   if (!snapshot?.options.length) {
     return [buildFallbackRow(journey, snapshot)];
   }
 
   return snapshot.options
-    .slice(0, rowCount)
+    .slice(0, JOURNEY_BOARD_ROW_COUNT)
     .map((option) => {
       const optionStatus = getOptionStatus(snapshot, option);
 
@@ -452,20 +450,18 @@ export function JourneyBoard({
   layout,
   refreshing,
   introAnimationId,
-  rowCount = JOURNEY_BOARD_ROW_COUNT,
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const rows = useMemo(
-    () => toBoardRows(journey, snapshot, rowCount),
-    [journey, snapshot, rowCount],
+    () => toBoardRows(journey, snapshot),
+    [journey, snapshot],
   );
   const previousRows = useMemo(
-    () =>
-      previousSnapshot ? toBoardRows(journey, previousSnapshot, rowCount) : null,
-    [journey, previousSnapshot, rowCount],
+    () => (previousSnapshot ? toBoardRows(journey, previousSnapshot) : null),
+    [journey, previousSnapshot],
   );
-  const emptyRowCount = Math.max(rowCount - rows.length, 0);
+  const emptyRowCount = Math.max(JOURNEY_BOARD_ROW_COUNT - rows.length, 0);
   const boardTickers = layout.tickers;
   const boardMinWidthRem = getBoardWidthRem(boardTickers, BOARD_GAP_REM);
   const boardWidthStyle = {

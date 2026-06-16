@@ -17,6 +17,7 @@ Add the values you need in `.env.local`.
 - `DARWIN_RDM_PROXY_URL` and `DARWIN_RDM_CONSUMER_KEY` enable live National Rail departures.
 - `DARWIN_RDM_AUTH_TYPE=api-key` is the default Rail Data Marketplace proxy mode.
 - `NEXT_PUBLIC_POLL_INTERVAL_MS` controls board refresh cadence in milliseconds and defaults to `60000`.
+- `NEXT_PUBLIC_MAPTILER_API_KEY` enables the UK map background.
 
 The site still starts without credentials. National Rail cards stay unconfigured until Darwin is set.
 

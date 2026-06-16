@@ -32,7 +32,6 @@ const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
 const AUTHOR_URL = "https://github.com/ethanyxchen";
 const LIVE_DATA_SOURCE_URL = "https://raildata.org.uk/";
 const BOARD_PADDING_REM = 2;
-const MAP_BOARD_ROW_COUNT = 3;
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const pollIntervalValue = Number.parseInt(
   process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
@@ -297,7 +296,7 @@ export function TrainTickerApp() {
   }, []);
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-black">
+    <main className="relative flex min-h-dvh w-full flex-1 flex-col overflow-hidden bg-[#050607]">
       {error ? (
         <div className="absolute left-3 top-3 z-10 max-w-[min(32rem,calc(100vw-1.5rem))] rounded-md border border-[rgba(236,138,109,0.34)] bg-[rgba(0,0,0,0.72)] px-3 py-2 text-[0.72rem] uppercase tracking-[0.12em] text-[var(--bad)] sm:left-5 sm:top-5">
           {error}
@@ -306,24 +305,13 @@ export function TrainTickerApp() {
 
       <NoticeCarousel notices={snapshot?.alerts ?? []} />
 
-      <div
-        className="relative flex min-h-0 w-full flex-1 overflow-hidden"
-      >
+      <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
-          <JourneyLiveMap
-            journey={journey}
-            snapshot={snapshot}
-            refreshing={refreshing}
-          />
+          <JourneyLiveMap journey={journey} />
         ) : null}
 
         <div
-          className={[
-            "absolute inset-x-3 bottom-14 z-20 mx-auto max-w-[88rem] sm:inset-x-5 sm:bottom-16",
-            journey
-              ? "rounded-lg border border-[rgba(255,255,255,0.12)] bg-[rgba(7,8,10,0.74)] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-md sm:p-3"
-              : "pointer-events-none",
-          ].join(" ")}
+          className="relative z-20 w-full max-w-[88rem]"
           ref={boardStackRef}
         >
           {journey ? (
@@ -335,7 +323,6 @@ export function TrainTickerApp() {
               layout={boardLayout}
               refreshing={refreshing}
               introAnimationId={introAnimationId}
-              rowCount={MAP_BOARD_ROW_COUNT}
             />
           ) : null}
         </div>
