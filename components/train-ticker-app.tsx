@@ -32,7 +32,10 @@ const STORAGE_UPDATE_EVENT = `${STORAGE_KEY}:change`;
 const AUTHOR_URL = "https://github.com/ethanyxchen";
 const LIVE_DATA_SOURCE_URL = "https://raildata.org.uk/";
 const BOARD_PADDING_REM = 2;
+const HARD_CODED_ALERT_MESSAGE =
+  "Heads-up: service is experiencing an operational alert.";
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const BOOLEAN_TRUE_VALUES = /^\s*(1|true|on|yes)\s*$/i;
 const pollIntervalValue = Number.parseInt(
   process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? "",
   10,
@@ -41,6 +44,18 @@ const POLL_INTERVAL_MS =
   Number.isFinite(pollIntervalValue) && pollIntervalValue > 0
     ? pollIntervalValue
     : DEFAULT_POLL_INTERVAL_MS;
+
+function isHardCodedAlertEnabled() {
+  return BOOLEAN_TRUE_VALUES.test(process.env.NEXT_PUBLIC_HARD_CODED_ALERTS ?? "");
+}
+
+function getAlertNotices(alerts: readonly string[] | undefined) {
+  if (!isHardCodedAlertEnabled()) {
+    return alerts ?? [];
+  }
+
+  return [...(alerts ?? []), HARD_CODED_ALERT_MESSAGE];
+}
 
 function hasSameBoardLayout(
   left: ResolvedBoardLayout,
@@ -303,7 +318,7 @@ export function TrainTickerApp() {
         </div>
       ) : null}
 
-      <NoticeCarousel notices={snapshot?.alerts ?? []} />
+      <NoticeCarousel notices={getAlertNotices(snapshot?.alerts)} />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-hidden px-3 pb-24 pt-6 sm:px-5 sm:pb-20 sm:pt-7">
         {journey ? (
