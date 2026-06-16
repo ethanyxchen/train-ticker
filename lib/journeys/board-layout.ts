@@ -14,11 +14,6 @@ export interface ResolvedBoardLayout {
   availableRem: number;
 }
 
-export interface FillerTickers {
-  left: number;
-  right: number;
-}
-
 interface ResolveBoardLayoutOptions {
   availableRem: number;
   baseTickers: BoardTickers;
@@ -36,37 +31,6 @@ export function getTickerRowWidthRem(lengths: readonly number[], gapRem: number)
 
 export function getBoardWidthRem(tickers: BoardTickers, gapRem: number) {
   return getTickerRowWidthRem(Object.values(tickers), gapRem);
-}
-
-export function getFillerTickerCount({
-  availableRem,
-  occupiedRem,
-  gapRem,
-}: {
-  availableRem: number;
-  occupiedRem: number;
-  gapRem: number;
-}) {
-  if (availableRem <= occupiedRem) {
-    return 0;
-  }
-
-  let fillerTickers = 1;
-
-  while (
-    occupiedRem + gapRem + getSplitFlapWidthRem(fillerTickers) < availableRem
-  ) {
-    fillerTickers += 1;
-  }
-
-  return fillerTickers;
-}
-
-export function splitFillerTickers(count: number): FillerTickers {
-  return {
-    left: Math.floor(count / 2),
-    right: Math.ceil(count / 2),
-  };
 }
 
 export function shouldUseCompactBoardLayout(

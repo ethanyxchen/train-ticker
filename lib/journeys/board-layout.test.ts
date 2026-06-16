@@ -3,12 +3,10 @@ import test from "node:test";
 
 import { BASE_BOARD_TICKERS } from "./board-display.ts";
 import {
-  getFillerTickerCount,
   getBoardWidthRem,
   getTickerRowWidthRem,
   resolveBoardLayout,
   shouldUseCompactBoardLayout,
-  splitFillerTickers,
 } from "./board-layout.ts";
 import { getSplitFlapWidthRem } from "./split-flap-metrics.ts";
 
@@ -85,44 +83,4 @@ test("computes a row width from ticker lengths", () => {
       getSplitFlapWidthRem(BASE_TICKERS.origin) +
       GAP_REM,
   );
-});
-
-test("adds enough filler tickers to cover spare row width", () => {
-  const occupiedRem = getBoardWidthRem(BASE_TICKERS, GAP_REM);
-  const availableRem = occupiedRem + getSplitFlapWidthRem(4);
-  const fillerTickers = getFillerTickerCount({
-    availableRem,
-    occupiedRem,
-    gapRem: GAP_REM,
-  });
-
-  assert.ok(fillerTickers > 0);
-  assert.ok(
-    occupiedRem + GAP_REM + getSplitFlapWidthRem(fillerTickers) >= availableRem,
-  );
-  assert.ok(
-    occupiedRem + GAP_REM + getSplitFlapWidthRem(fillerTickers - 1) <
-      availableRem,
-  );
-});
-
-test("does not add filler tickers when the row already fills the width", () => {
-  const occupiedRem = getBoardWidthRem(BASE_TICKERS, GAP_REM);
-
-  assert.equal(
-    getFillerTickerCount({
-      availableRem: occupiedRem,
-      occupiedRem,
-      gapRem: GAP_REM,
-    }),
-    0,
-  );
-});
-
-test("splits filler tickers evenly across both row sides", () => {
-  assert.deepEqual(splitFillerTickers(6), { left: 3, right: 3 });
-});
-
-test("puts the extra filler ticker on the right side", () => {
-  assert.deepEqual(splitFillerTickers(5), { left: 2, right: 3 });
 });

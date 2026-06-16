@@ -355,7 +355,7 @@ export function TrainTickerApp({
             <span>
               By{" "}
               <a
-                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                className="text-[rgba(247,244,238,0.68)] transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
                 href={AUTHOR_URL}
                 rel="noreferrer"
                 target="_blank"
@@ -367,7 +367,7 @@ export function TrainTickerApp({
             <span>
               Live data from{" "}
               <a
-                className="text-[rgba(247,244,238,0.68)] underline decoration-[rgba(223,186,75,0.56)] underline-offset-4 transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
+                className="text-[rgba(247,244,238,0.68)] transition-colors hover:text-[var(--accent)] focus:outline-none focus-visible:text-[var(--accent)]"
                 href={LIVE_DATA_SOURCE_URL}
                 rel="noreferrer"
                 target="_blank"

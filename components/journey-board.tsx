@@ -19,12 +19,8 @@ import {
   type BoardRowSnapshot,
 } from "@/lib/journeys/board-row-diff";
 import {
-  getFillerTickerCount,
   getBoardWidthRem,
-  getTickerRowWidthRem,
   shouldUseCompactBoardLayout,
-  splitFillerTickers,
-  type FillerTickers,
   type ResolvedBoardLayout,
   type BoardTickers,
 } from "@/lib/journeys/board-layout";
@@ -93,43 +89,13 @@ const COMPACT_BOARD_COLUMNS: readonly [readonly BoardColumn[], readonly BoardCol
 function getBoardGridStyle(
   tickers: BoardTickers,
   columns: readonly BoardColumn[],
-  fillerTickers: FillerTickers,
 ) {
-  const gridColumns = columns.map((column) => getSplitFlapWidth(tickers[column.key]));
-
-  if (fillerTickers.left > 0) {
-    gridColumns.unshift(getSplitFlapWidth(fillerTickers.left));
-  }
-
-  if (fillerTickers.right > 0) {
-    gridColumns.push(getSplitFlapWidth(fillerTickers.right));
-  }
-
   return {
-    gridTemplateColumns: gridColumns.join(" "),
+    gridTemplateColumns: columns
+      .map((column) => getSplitFlapWidth(tickers[column.key]))
+      .join(" "),
     columnGap: `${BOARD_GAP_REM}rem`,
   } satisfies CSSProperties;
-}
-
-function getBoardFillerTickers({
-  tickers,
-  columns,
-  availableRem,
-}: {
-  tickers: BoardTickers;
-  columns: readonly BoardColumn[];
-  availableRem: number;
-}) {
-  return splitFillerTickers(
-    getFillerTickerCount({
-      availableRem,
-      occupiedRem: getTickerRowWidthRem(
-        columns.map((column) => tickers[column.key]),
-        BOARD_GAP_REM,
-      ),
-      gapRem: BOARD_GAP_REM,
-    }),
-  );
 }
 
 function getBoardField(snapshot: JourneySnapshot | undefined, label: string) {
@@ -290,20 +256,20 @@ function toBoardRows(
 function BoardHeader({
   tickers,
   columns,
-  fillerTickers,
   refreshing,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
-  fillerTickers: FillerTickers;
   refreshing?: boolean;
 }) {
-  const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
+  const boardGridStyle = getBoardGridStyle(tickers, columns);
 
   return (
-    <div className="relative">
-      <div className="grid items-center px-[0.15rem]" style={boardGridStyle}>
-        {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
+    <div className="relative mx-auto w-fit">
+      <div
+        className="grid w-fit items-center px-[0.15rem]"
+        style={boardGridStyle}
+      >
         {columns.map((column) => (
           <div
             key={column.key}
@@ -312,7 +278,6 @@ function BoardHeader({
             {column.label}
           </div>
         ))}
-        {fillerTickers.right > 0 ? <div aria-hidden="true" /> : null}
       </div>
       {refreshing !== undefined ? (
         <div
@@ -338,7 +303,6 @@ function BoardGridRow({
   row,
   animatedCells,
   animationId,
-  fillerTickers,
   switchable = true,
 }: {
   tickers: BoardTickers;
@@ -346,21 +310,12 @@ function BoardGridRow({
   row?: BoardRow;
   animatedCells?: BoardRowAnimationState;
   animationId?: number | string;
-  fillerTickers: FillerTickers;
   switchable?: boolean;
 }) {
-  const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
+  const boardGridStyle = getBoardGridStyle(tickers, columns);
 
   return (
-    <div className="grid items-center" style={boardGridStyle}>
-      {fillerTickers.left > 0 ? (
-        <SplitFlapText
-          value=""
-          length={fillerTickers.left}
-          tone="neutral"
-          switchable={false}
-        />
-      ) : null}
+    <div className="mx-auto grid w-fit items-center" style={boardGridStyle}>
       {columns.map((column) => {
         const hasValue = hasBoardCellValue(row, column);
 
@@ -378,51 +333,28 @@ function BoardGridRow({
           />
         );
       })}
-      {fillerTickers.right > 0 ? (
-        <SplitFlapText
-          value=""
-          length={fillerTickers.right}
-          tone="neutral"
-          switchable={false}
-        />
-      ) : null}
     </div>
   );
 }
 
 function EmptyRow({
   tickers,
-  availableRem,
   compact,
 }: {
   tickers: BoardTickers;
-  availableRem: number;
   compact: boolean;
 }) {
   if (compact) {
-    const firstFillerTickers = getBoardFillerTickers({
-      tickers,
-      columns: COMPACT_BOARD_COLUMNS[0],
-      availableRem,
-    });
-    const secondFillerTickers = getBoardFillerTickers({
-      tickers,
-      columns: COMPACT_BOARD_COLUMNS[1],
-      availableRem,
-    });
-
     return (
       <div className="space-y-2">
         <BoardGridRow
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[0]}
-          fillerTickers={firstFillerTickers}
           switchable={false}
         />
         <BoardGridRow
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[1]}
-          fillerTickers={secondFillerTickers}
           switchable={false}
         />
       </div>
@@ -433,11 +365,6 @@ function EmptyRow({
     <BoardGridRow
       tickers={tickers}
       columns={BOARD_COLUMNS}
-      fillerTickers={getBoardFillerTickers({
-        tickers,
-        columns: BOARD_COLUMNS,
-        availableRem,
-      })}
       switchable={false}
     />
   );
@@ -467,21 +394,6 @@ export function JourneyBoard({
   const boardWidthStyle = {
     minWidth: `${boardMinWidthRem}rem`,
   } satisfies CSSProperties;
-  const fullBoardFillerTickers = getBoardFillerTickers({
-    tickers: boardTickers,
-    columns: BOARD_COLUMNS,
-    availableRem: layout.availableRem,
-  });
-  const firstCompactFillerTickers = getBoardFillerTickers({
-    tickers: boardTickers,
-    columns: COMPACT_BOARD_COLUMNS[0],
-    availableRem: layout.availableRem,
-  });
-  const secondCompactFillerTickers = getBoardFillerTickers({
-    tickers: boardTickers,
-    columns: COMPACT_BOARD_COLUMNS[1],
-    availableRem: layout.availableRem,
-  });
   const fallbackRowKey = `fallback:${journey.id}`;
   const animateAllFields =
     introAnimationId !== undefined && previousSnapshot === undefined;
@@ -548,12 +460,10 @@ export function JourneyBoard({
                 <BoardHeader
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
-                  fillerTickers={firstCompactFillerTickers}
                 />
                 <BoardHeader
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[1]}
-                  fillerTickers={secondCompactFillerTickers}
                 />
               </div>
 
@@ -568,7 +478,6 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
                       animatedCells={animatedRows[index]}
-                      fillerTickers={firstCompactFillerTickers}
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
@@ -581,7 +490,6 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
                       animatedCells={animatedRows[index]}
-                      fillerTickers={secondCompactFillerTickers}
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
@@ -596,7 +504,6 @@ export function JourneyBoard({
                   <EmptyRow
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
-                    availableRem={layout.availableRem}
                     compact
                   />
                 ))}
@@ -607,7 +514,6 @@ export function JourneyBoard({
               <BoardHeader
                 tickers={boardTickers}
                 columns={BOARD_COLUMNS}
-                fillerTickers={fullBoardFillerTickers}
                 refreshing={refreshing}
               />
 
@@ -619,7 +525,6 @@ export function JourneyBoard({
                     columns={BOARD_COLUMNS}
                     row={row}
                     animatedCells={animatedRows[index]}
-                    fillerTickers={fullBoardFillerTickers}
                     animationId={
                       animatedRows[index] &&
                       (animateAllFields
@@ -633,7 +538,6 @@ export function JourneyBoard({
                   <EmptyRow
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
-                    availableRem={layout.availableRem}
                     compact={false}
                   />
                 ))}
