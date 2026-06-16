@@ -44,7 +44,7 @@ interface JourneyBoardProps {
   previousSnapshot: JourneySnapshot | undefined;
   layout: ResolvedBoardLayout;
   refreshing: boolean;
-  introCycle?: number;
+  introAnimationId?: number | string;
   onChangeJourney: () => void;
   onClearJourney: () => void;
 }
@@ -419,7 +419,7 @@ export function JourneyBoard({
   previousSnapshot,
   layout,
   refreshing,
-  introCycle,
+  introAnimationId,
   onChangeJourney,
   onClearJourney,
 }: JourneyBoardProps) {
@@ -455,7 +455,8 @@ export function JourneyBoard({
     availableRem: layout.availableRem,
   });
   const fallbackRowKey = `fallback:${journey.id}`;
-  const animateAllFields = introCycle !== undefined && previousSnapshot === undefined;
+  const animateAllFields =
+    introAnimationId !== undefined && previousSnapshot === undefined;
   const animatedRows = getBoardRowAnimationStates(
     rows,
     previousRows ?? [],
@@ -543,7 +544,7 @@ export function JourneyBoard({
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
-                          ? `intro:${introCycle}:${index}`
+                          ? `intro:${introAnimationId}:${index}`
                           : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
                       }
                     />
@@ -556,7 +557,7 @@ export function JourneyBoard({
                       animationId={
                         animatedRows[index] &&
                         (animateAllFields
-                          ? `intro:${introCycle}:${index}`
+                          ? `intro:${introAnimationId}:${index}`
                           : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
                       }
                     />
@@ -593,7 +594,7 @@ export function JourneyBoard({
                     animationId={
                       animatedRows[index] &&
                       (animateAllFields
-                        ? `intro:${introCycle}:${index}`
+                        ? `intro:${introAnimationId}:${index}`
                         : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
                     }
                   />
