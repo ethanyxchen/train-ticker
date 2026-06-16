@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 
 import { getJourneyProvider } from "@/lib/journeys/providers";
+import { enforceRateLimit, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const rateLimited = await enforceRateLimit(
+    request,
+    RATE_LIMIT_POLICIES.search,
+  );
+
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
 
