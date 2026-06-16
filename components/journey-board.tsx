@@ -62,7 +62,7 @@ type BoardColumn = {
   align?: "left" | "right";
 };
 
-const BOARD_GAP_REM = 0.75;
+const BOARD_GAP_REM = 1;
 const BOARD_COLUMNS: readonly BoardColumn[] = [
   { key: "time", label: "Time", align: "right" },
   { key: "origin", label: "Origin" },
@@ -93,6 +93,7 @@ function getBoardGridStyle(
 
   return {
     gridTemplateColumns: gridColumns.join(" "),
+    columnGap: `${BOARD_GAP_REM}rem`,
   } satisfies CSSProperties;
 }
 
@@ -287,7 +288,7 @@ function BoardHeader({
 
   return (
     <div className="relative">
-      <div className="grid items-center gap-3 px-[0.15rem]" style={boardGridStyle}>
+      <div className="grid items-center px-[0.15rem]" style={boardGridStyle}>
         {fillerTickers.left > 0 ? <div aria-hidden="true" /> : null}
         {columns.map((column) => (
           <div
@@ -337,7 +338,7 @@ function BoardGridRow({
   const boardGridStyle = getBoardGridStyle(tickers, columns, fillerTickers);
 
   return (
-    <div className="grid items-center gap-3" style={boardGridStyle}>
+    <div className="grid items-center" style={boardGridStyle}>
       {fillerTickers.left > 0 ? (
         <SplitFlapText
           value=""
