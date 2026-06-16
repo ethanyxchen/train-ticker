@@ -265,8 +265,11 @@ function BoardHeader({
   const boardGridStyle = getBoardGridStyle(tickers, columns);
 
   return (
-    <div className="relative">
-      <div className="grid items-center px-[0.15rem]" style={boardGridStyle}>
+    <div className="relative mx-auto w-fit">
+      <div
+        className="grid w-fit items-center px-[0.15rem]"
+        style={boardGridStyle}
+      >
         {columns.map((column) => (
           <div
             key={column.key}
@@ -312,7 +315,7 @@ function BoardGridRow({
   const boardGridStyle = getBoardGridStyle(tickers, columns);
 
   return (
-    <div className="grid items-center" style={boardGridStyle}>
+    <div className="mx-auto grid w-fit items-center" style={boardGridStyle}>
       {columns.map((column) => {
         const hasValue = hasBoardCellValue(row, column);
 
