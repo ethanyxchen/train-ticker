@@ -51,6 +51,26 @@ test("keeps the first loaded board static without an intro animation", () => {
   ]);
 });
 
+test("animates every field during an intro animation", () => {
+  const states = getBoardRowAnimationStates(
+    [createBoardRow("service-1")],
+    [],
+    "fallback:journey-1",
+    { animateAllFields: true, suppressNewRows: true },
+  );
+
+  assert.deepEqual(states, [
+    {
+      time: true,
+      origin: true,
+      destination: true,
+      operator: true,
+      platform: true,
+      status: true,
+    },
+  ]);
+});
+
 test("animates only critical fields for a newly appeared row after baseline", () => {
   const states = getBoardRowAnimationStates(
     [createBoardRow("service-2")],

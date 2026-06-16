@@ -126,6 +126,8 @@ export function TrainTickerApp() {
   const boardStackRef = useRef<HTMLDivElement | null>(null);
   const journeyRef = useRef(journey);
   const snapshotRef = useRef(snapshot);
+  const introAnimationId =
+    introCycle > 0 ? introCycle : journey ? `stored:${journey.id}` : undefined;
   const [boardLayout, setBoardLayout] = useState<ResolvedBoardLayout>({
     tickers: BASE_BOARD_TICKERS,
     availableRem: 0,
@@ -309,7 +311,7 @@ export function TrainTickerApp() {
             previousSnapshot={previousSnapshot}
             layout={boardLayout}
             refreshing={refreshing}
-            introCycle={introCycle > 0 ? introCycle : undefined}
+            introAnimationId={introAnimationId}
             onChangeJourney={() => setCommandMenuOpen(true)}
             onClearJourney={() => {
               journeyRef.current = null;
