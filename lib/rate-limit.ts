@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { createClient, type RedisClientType } from "redis";
 
 type RateLimitStore = {
   increment: (
@@ -74,9 +75,37 @@ class UpstashRateLimitStore implements RateLimitStore {
   }
 }
 
+class RedisUrlRateLimitStore implements RateLimitStore {
+  private readonly client: RedisClientType;
+  private connection: Promise<RedisClientType> | undefined;
+
+  constructor(url: string) {
+    this.client = createClient({ url });
+  }
+
+  private async connect() {
+    this.connection ??= this.client.connect().then(() => this.client);
+
+    return this.connection;
+  }
+
+  async increment(key: string, windowSeconds: number) {
+    const client = await this.connect();
+    const [count, ttlSeconds] = (await client.eval(RATE_LIMIT_SCRIPT, {
+      keys: [key],
+      arguments: [String(windowSeconds)],
+    })) as [number, number];
+
+    return {
+      count: Number(count),
+      ttlSeconds: Number(ttlSeconds),
+    };
+  }
+}
+
 let store: RateLimitStore | null | undefined;
 
-function hasRedisCredentials() {
+function hasRestRedisCredentials() {
   return Boolean(
     (process.env.UPSTASH_REDIS_REST_URL &&
       process.env.UPSTASH_REDIS_REST_TOKEN) ||
@@ -84,16 +113,36 @@ function hasRedisCredentials() {
   );
 }
 
+function getRedisUrl() {
+  return process.env.REDIS_URL?.trim() || null;
+}
+
+function createRateLimitStore() {
+  const redisUrl = getRedisUrl();
+
+  if (redisUrl) {
+    return new RedisUrlRateLimitStore(redisUrl);
+  }
+
+  if (hasRestRedisCredentials()) {
+    return new UpstashRateLimitStore(Redis.fromEnv());
+  }
+
+  return null;
+}
+
 function getRateLimitStore() {
   if (store !== undefined) {
     return store;
   }
 
-  store = hasRedisCredentials()
-    ? new UpstashRateLimitStore(Redis.fromEnv())
-    : null;
+  store = createRateLimitStore();
 
   return store;
+}
+
+export function hasConfiguredRateLimitStore() {
+  return Boolean(getRedisUrl() || hasRestRedisCredentials());
 }
 
 export function getClientIp(request: Request) {

@@ -19,7 +19,8 @@ Add the values you need in `.env.local`.
 - `NEXT_PUBLIC_POLL_INTERVAL_MS` controls board refresh cadence in milliseconds and defaults to `60000`.
 - `HARD_CODED_ALERTS` toggles a hardcoded alert banner message at the top of the app when set to `true`.
 - `NEXT_PUBLIC_MAPTILER_API_KEY` enables the UK map background.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` enable public API rate limiting.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` enable public API rate limiting through Upstash Redis.
+- `REDIS_URL` enables public API rate limiting through Vercel Redis.
 - `RATE_LIMIT_SEARCHES_PER_MINUTE` controls search requests per IP and defaults to `30`.
 - `RATE_LIMIT_JOURNEYS_PER_MINUTE` controls live journey refreshes per IP and defaults to `10`.
 

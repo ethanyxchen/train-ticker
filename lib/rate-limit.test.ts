@@ -5,6 +5,7 @@ import {
   checkRateLimit,
   enforceRateLimit,
   getClientIp,
+  hasConfiguredRateLimitStore,
 } from "./rate-limit.ts";
 
 function createRequest(headers: Record<string, string> = {}) {
@@ -118,6 +119,54 @@ test("requires a configured store in production", async () => {
       Reflect.deleteProperty(process.env, "NODE_ENV");
     } else {
       process.env.NODE_ENV = originalNodeEnv;
+    }
+  }
+});
+
+test("recognizes Redis URL credentials", () => {
+  const originalRedisUrl = process.env.REDIS_URL;
+  const originalUpstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const originalUpstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const originalKvUrl = process.env.KV_REST_API_URL;
+  const originalKvToken = process.env.KV_REST_API_TOKEN;
+
+  process.env.REDIS_URL = "redis://localhost:6379";
+  Reflect.deleteProperty(process.env, "UPSTASH_REDIS_REST_URL");
+  Reflect.deleteProperty(process.env, "UPSTASH_REDIS_REST_TOKEN");
+  Reflect.deleteProperty(process.env, "KV_REST_API_URL");
+  Reflect.deleteProperty(process.env, "KV_REST_API_TOKEN");
+
+  try {
+    assert.equal(hasConfiguredRateLimitStore(), true);
+  } finally {
+    if (originalRedisUrl === undefined) {
+      Reflect.deleteProperty(process.env, "REDIS_URL");
+    } else {
+      process.env.REDIS_URL = originalRedisUrl;
+    }
+
+    if (originalUpstashUrl === undefined) {
+      Reflect.deleteProperty(process.env, "UPSTASH_REDIS_REST_URL");
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUpstashUrl;
+    }
+
+    if (originalUpstashToken === undefined) {
+      Reflect.deleteProperty(process.env, "UPSTASH_REDIS_REST_TOKEN");
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalUpstashToken;
+    }
+
+    if (originalKvUrl === undefined) {
+      Reflect.deleteProperty(process.env, "KV_REST_API_URL");
+    } else {
+      process.env.KV_REST_API_URL = originalKvUrl;
+    }
+
+    if (originalKvToken === undefined) {
+      Reflect.deleteProperty(process.env, "KV_REST_API_TOKEN");
+    } else {
+      process.env.KV_REST_API_TOKEN = originalKvToken;
     }
   }
 });
