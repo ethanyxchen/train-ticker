@@ -7,6 +7,7 @@ import {
   normalizeEnvValue,
 } from "../provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
+import { filterDisruptionNotices } from "../disruption-notices";
 import type { JourneyProvider } from "./base";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
@@ -510,6 +511,15 @@ function dedupeRailServices(services: DarwinService[]): DarwinService[] {
   });
 }
 
+function buildRailServiceAlerts(service: DarwinService): string[] {
+  const departure = formatBoardValue(service.std, "--:--");
+
+  return dedupeText([
+    service.cancelReason,
+    service.delayReason,
+  ]).map((alert) => `${departure} - ${alert}`);
+}
+
 export const nationalRailProvider: JourneyProvider = {
   id: "national-rail",
   async search(query) {
@@ -539,19 +549,15 @@ export const nationalRailProvider: JourneyProvider = {
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
 
-    const alerts = dedupeText([
+    const alerts = filterDisruptionNotices(dedupeText([
       ...boards.flatMap((currentBoard) =>
         (currentBoard.nrccMessages ?? []).map((message) => message.Value),
       ),
-      firstService?.cancelReason,
-      firstService?.delayReason,
-      firstArrival.callingPoint?.cancelReason,
-      firstArrival.callingPoint?.delayReason,
-      ...(firstService?.adhocAlerts ?? []),
+      ...departures.flatMap(buildRailServiceAlerts),
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
-    ]);
+    ]));
 
     return {
       journeyId: journey.id,

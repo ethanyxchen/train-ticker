@@ -306,7 +306,7 @@ test(
 );
 
 test(
-  "adds live-board alerts without changing healthy Darwin departures",
+  "adds generic notices and departure-prefixed service alerts",
   { concurrency: false },
   async () => {
   await withMockedRailEnvironment({}, async (requests) => {
@@ -350,6 +350,7 @@ test(
             operator: "Thameslink",
             operatorCode: "TL",
             destination: [{ crs: "BDM", locationName: "Bedford" }],
+            delayReason: "This service has been delayed by a fault with the signalling system.",
           },
           {
             serviceID: "tl-1030",
@@ -360,6 +361,19 @@ test(
             operator: "Thameslink",
             operatorCode: "TL",
             destination: [{ crs: "BDM", locationName: "Bedford" }],
+            subsequentCallingPoints: [
+              {
+                callingPoint: [
+                  {
+                    crs: "BDM",
+                    locationName: "Bedford",
+                    st: "11:12",
+                    et: "On time",
+                    delayReason: "This stop has a separate calling point delay.",
+                  },
+                ],
+              },
+            ],
           },
           {
             serviceID: "tl-1040",
@@ -395,13 +409,20 @@ test(
         snapshot.alerts.join(" "),
         /Some trains between London St Pancras International and Bedford may be delayed/,
       );
-      assert.match(
-        snapshot.alerts.join(" "),
-        /Earlier signalling fault at West Hampstead/,
+      assert.deepEqual(
+        snapshot.alerts.filter((alert) => alert.startsWith("10:")),
+        [
+          "10:10 - Earlier signalling fault at West Hampstead.",
+          "10:20 - This service has been delayed by a fault with the signalling system.",
+        ],
       );
-      assert.match(
-        snapshot.alerts.join(" "),
-        /This train has fewer coaches than usual/,
+      assert.equal(
+        snapshot.alerts.some((alert) => alert.includes("fewer coaches")),
+        false,
+      );
+      assert.equal(
+        snapshot.alerts.some((alert) => alert.includes("calling point delay")),
+        false,
       );
       assert.equal(
         requests.some((request) => request.url.includes("/api/v2/")),
