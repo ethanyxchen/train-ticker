@@ -7,7 +7,6 @@ import {
   normalizeEnvValue,
 } from "../provider-utils";
 import { JOURNEY_BOARD_ROW_COUNT } from "../constants";
-import { filterDisruptionNotices } from "../disruption-notices";
 import type { JourneyProvider } from "./base";
 import { buildRailRequestUrl } from "./national-rail-request";
 import type {
@@ -16,10 +15,6 @@ import type {
   JourneySnapshotStatus,
   SavedJourney,
 } from "../types";
-
-interface DarwinMessage {
-  Value?: string;
-}
 
 interface DarwinServiceLocation {
   locationName?: string;
@@ -52,7 +47,6 @@ interface DarwinService {
   isCancelled?: boolean;
   cancelReason?: string;
   delayReason?: string;
-  adhocAlerts?: string[];
   destination?: DarwinServiceLocation[];
   subsequentCallingPoints?: DarwinCallingPointGroup[];
   serviceID?: string;
@@ -65,7 +59,6 @@ interface DarwinStationBoard {
   trainServices?: DarwinService[];
   busServices?: DarwinService[];
   ferryServices?: DarwinService[];
-  nrccMessages?: DarwinMessage[];
 }
 
 type RailProxyAuthType = "api-key" | "bearer";
@@ -549,15 +542,12 @@ export const nationalRailProvider: JourneyProvider = {
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
 
-    const alerts = filterDisruptionNotices(dedupeText([
-      ...boards.flatMap((currentBoard) =>
-        (currentBoard.nrccMessages ?? []).map((message) => message.Value),
-      ),
+    const alerts = dedupeText([
       ...departures.flatMap(buildRailServiceAlerts),
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
-    ]));
+    ]);
 
     return {
       journeyId: journey.id,
