@@ -135,7 +135,6 @@ function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
   const subheadline = missingProxyUrl
     ? "Add DARWIN_RDM_PROXY_URL from the Rail Data Marketplace Specification tab."
     : "Add DARWIN_RDM_PROXY_URL and DARWIN_RDM_CONSUMER_KEY to enable live National Rail departures.";
-  const alerts = ["National Rail live boards use the Rail Data Marketplace proxy URL and consumer key."];
 
   return {
     journeyId: journey.id,
@@ -150,7 +149,7 @@ function buildUnconfiguredSnapshot(journey: SavedJourney): JourneySnapshot {
       { label: "STATE", value: "SET UP", tone: "warn" },
     ],
     options: [],
-    alerts,
+    alerts: [],
   };
 }
 
@@ -542,12 +541,7 @@ export const nationalRailProvider: JourneyProvider = {
     const firstArrival = getJourneyArrival(firstService, journey);
     const status = pickRailStatus(firstService, firstArrival);
 
-    const alerts = dedupeText([
-      ...departures.flatMap(buildRailServiceAlerts),
-      departures.length === 0
-        ? "No services to the selected stop were visible in the current live departure-board window."
-        : undefined,
-    ]);
+    const alerts = dedupeText(departures.flatMap(buildRailServiceAlerts));
 
     return {
       journeyId: journey.id,
