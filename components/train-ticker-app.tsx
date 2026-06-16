@@ -321,7 +321,7 @@ export function TrainTickerApp() {
         ) : null}
       </div>
 
-      <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.64rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6 sm:text-[0.72rem]">
+      <footer className="absolute bottom-4 left-0 right-0 z-10 flex flex-col items-center gap-1.5 px-3 text-center text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
         <div>
           <span aria-label="Command key" role="img">
             &#8984;
