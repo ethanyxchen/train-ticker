@@ -110,7 +110,6 @@ const MAPTILER_API_KEY = process.env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim();
 const MAPTILER_ROUTE_SOURCE_ID = "journey-route";
 const MAPTILER_STATIONS_SOURCE_ID = "journey-stations";
 const MAPTILER_SERVICES_SOURCE_ID = "journey-services";
-const MAPTILER_STYLE_ID = "dataviz-v4-dark";
 const DEFAULT_ORIGIN: GeoPoint = {
   latitude: 51.531921,
   longitude: -0.126361,
@@ -582,7 +581,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
         pitch: 0,
         pitchWithRotate: false,
         scaleControl: false,
-        style: MAPTILER_STYLE_ID,
+        style: sdk.MapStyle.DATAVIZ.DARK,
         terrain: false,
       });
 
