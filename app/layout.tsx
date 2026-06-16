@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Oswald } from "next/font/google";
+import "@maptiler/sdk/dist/maptiler-sdk.css";
 import "./globals.css";
 
 const displayFont = Oswald({

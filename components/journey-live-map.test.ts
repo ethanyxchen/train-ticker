@@ -7,7 +7,6 @@ import { renderToString } from "react-dom/server";
 import {
   JourneyLiveMap,
   getJourneyLiveMapModel,
-  getJourneyLiveMapTiles,
 } from "./journey-live-map.tsx";
 import { createSavedJourney } from "@/lib/journeys/identity";
 
@@ -32,7 +31,7 @@ test("builds a selected journey route with dummy active services", () => {
   assert.equal(model.stations.at(0)?.terminal, true);
   assert.equal(model.stations.at(-1)?.terminal, true);
   assert.equal(model.services.length, 5);
-  assert.equal(model.mapAspectRatio > 0, true);
+  assert.equal(model.routeCoordinates.length, 72);
   assert.equal(
     model.services.some((service) => service.direction === "inbound"),
     true,
@@ -41,16 +40,21 @@ test("builds a selected journey route with dummy active services", () => {
     model.services.some((service) => service.direction === "outbound"),
     true,
   );
-  assert.equal(model.routePath.startsWith("M "), true);
 });
 
-test("builds MapTiler UK background tiles", () => {
-  const tiles = getJourneyLiveMapTiles("test-key");
+test("builds dynamic map bounds around the selected journey", () => {
+  const model = getJourneyLiveMapModel(journey);
+  const [[west, south], [east, north]] = model.bounds as [
+    [number, number],
+    [number, number],
+  ];
 
-  assert.equal(tiles.length > 0, true);
-  assert.match(tiles[0]?.url ?? "", /api\.maptiler\.com\/maps\/dataviz-dark/);
-  assert.match(tiles[0]?.url ?? "", /key=test-key/);
-  assert.equal(tiles.every((tile) => tile.width > 0 && tile.height > 0), true);
+  assert.equal(west < -1.12, true);
+  assert.equal(east > -0.13, true);
+  assert.equal(south < 51.54, true);
+  assert.equal(north > 52.63, true);
+  assert.equal(east - west < 2, true);
+  assert.equal(north - south < 2, true);
 });
 
 test("renders the selected journey as one map-backed page", () => {
@@ -64,6 +68,8 @@ test("renders the selected journey as one map-backed page", () => {
   assert.match(html, /Leicester/);
   assert.match(html, /active services/);
   assert.match(html, /OpenStreetMap contributors/);
+  assert.match(html, /journey-live-map-canvas/);
+  assert.equal(html.includes("<svg"), false);
   assert.equal(html.includes("MAP"), false);
   assert.equal(html.includes("BOARD"), false);
   assert.equal(html.includes("+"), false);

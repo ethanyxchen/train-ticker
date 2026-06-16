@@ -196,6 +196,7 @@ select {
   z-index: 0;
   overflow: hidden;
   isolation: isolate;
+  pointer-events: auto;
   background:
     radial-gradient(circle at 50% 70%, rgba(39, 57, 67, 0.32), transparent 44%),
     linear-gradient(180deg, #050607 0%, #050607 38%, #071013 100%);
@@ -212,8 +213,8 @@ select {
 .journey-live-map::before {
   z-index: 2;
   background:
-    linear-gradient(180deg, #050607 0%, rgba(5, 6, 7, 0.88) 20%, rgba(5, 6, 7, 0.18) 50%, rgba(5, 6, 7, 0.54) 100%),
-    radial-gradient(circle at 50% 58%, transparent 0 31%, rgba(5, 6, 7, 0.42) 72%, #050607 100%);
+    linear-gradient(180deg, #050607 0%, rgba(5, 6, 7, 0.88) 20%, rgba(5, 6, 7, 0.12) 50%, rgba(5, 6, 7, 0.5) 100%),
+    radial-gradient(circle at 50% 58%, transparent 0 40%, rgba(5, 6, 7, 0.34) 76%, #050607 100%);
 }
 
 .journey-live-map::after {
@@ -223,38 +224,29 @@ select {
     radial-gradient(circle at 50% 70%, transparent 0 31%, rgba(223, 186, 75, 0.05) 42%, transparent 70%);
 }
 
-.journey-live-map-viewport {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(-6rem, -8vh, -2.5rem);
-  z-index: 1;
-  height: clamp(34rem, 92vh, 68rem);
-  aspect-ratio: var(--journey-map-aspect-ratio);
-  opacity: 0.96;
-  filter: saturate(0.88) brightness(0.9) contrast(1.08);
-  transform: translateX(-50%);
-}
-
-.journey-live-map-tiles,
-.journey-live-map-svg,
-.journey-live-map-tile-fallback {
+.journey-live-map-canvas,
+.journey-live-map-fallback {
   position: absolute;
   inset: 0;
+  z-index: 1;
 }
 
-.journey-live-map-tiles {
-  overflow: hidden;
-  border-radius: 50%;
-  mask-image: radial-gradient(ellipse at center, #000 0 62%, transparent 78%);
+.journey-live-map-canvas {
+  opacity: 0.94;
+  filter: saturate(0.88) brightness(0.82) contrast(1.1);
 }
 
-.journey-live-map-tile {
-  position: absolute;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+.journey-live-map-canvas canvas {
+  outline: none;
 }
 
-.journey-live-map-tile-fallback {
+.journey-live-map-canvas .maplibregl-canvas-container,
+.journey-live-map-canvas .maplibregl-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+.journey-live-map-fallback {
   background:
     radial-gradient(circle at 42% 18%, rgba(255, 255, 255, 0.11) 0 2%, transparent 2.4%),
     radial-gradient(circle at 50% 50%, rgba(80, 120, 138, 0.24), transparent 58%),
@@ -262,117 +254,11 @@ select {
     #0a1115;
 }
 
-.journey-live-map-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  mix-blend-mode: screen;
-}
-
-.journey-live-map-track-shadow,
-.journey-live-map-track-halo,
-.journey-live-map-track {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.journey-live-map-track-shadow {
-  stroke: rgba(0, 0, 0, 0.78);
-  stroke-width: 3.8;
-}
-
-.journey-live-map-track-halo {
-  stroke: var(--journey-route-color);
-  stroke-width: 3.2;
-  opacity: 0.34;
-  filter: drop-shadow(0 0 0.9rem var(--journey-route-glow));
-  animation: journey-live-map-route-pulse 2.6s ease-in-out infinite;
-}
-
-.journey-live-map-track {
-  stroke: var(--journey-route-color);
-  stroke-width: 1.25;
-  filter: drop-shadow(0 0 0.45rem var(--journey-route-glow));
-}
-
-.journey-live-map-station-node {
-  fill: #f7f4ee;
-  stroke: #0a0b0d;
-  stroke-width: 0.44;
-  filter: drop-shadow(0 0 0.28rem rgba(247, 244, 238, 0.28));
-}
-
-.journey-live-map-station-node.terminal {
-  stroke: var(--journey-route-color);
-  stroke-width: 0.64;
-}
-
-.journey-live-map-service {
-  cursor: pointer;
-  outline: none;
-}
-
-.journey-live-map-service-pulse {
-  fill: var(--journey-route-color);
-  opacity: 0.28;
-  animation: journey-live-map-service-pulse 1.45s ease-out infinite;
-}
-
-.journey-live-map-service-body {
-  fill: #f7f4ee;
-  stroke: var(--journey-route-color);
-  stroke-width: 0.72;
-  filter: drop-shadow(0 0 0.42rem var(--journey-route-glow));
-}
-
-.journey-live-map-service-light {
-  fill: var(--journey-route-color);
-}
-
-.journey-live-map-service-detail {
-  overflow: visible;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 140ms ease;
-}
-
-.journey-live-map-service:hover .journey-live-map-service-detail,
-.journey-live-map-service:focus .journey-live-map-service-detail,
-.journey-live-map-service:focus-visible .journey-live-map-service-detail {
-  opacity: 1;
-}
-
-.journey-live-map-service-detail div {
-  display: grid;
-  gap: 0.7px;
-  width: max-content;
-  max-width: 28px;
-  padding: 1.2px 1.4px;
-  border: 0.18px solid rgba(255, 255, 255, 0.18);
-  border-radius: 1.4px;
-  background: rgba(6, 8, 11, 0.9);
-  color: rgba(247, 244, 238, 0.82);
-  font-family: var(--font-board), monospace, sans-serif;
-  font-size: 2px;
-  line-height: 1;
-  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.38);
-}
-
-.journey-live-map-service-detail strong {
-  color: #ffffff;
-  font-size: 2.2px;
-  font-weight: 600;
-}
-
 .journey-live-map-attribution {
   position: absolute;
-  z-index: 5;
-}
-
-.journey-live-map-attribution {
   right: 1rem;
   bottom: 1rem;
+  z-index: 5;
   display: inline-flex;
   gap: 0.6rem;
   color: rgba(247, 244, 238, 0.32);
@@ -394,18 +280,8 @@ select {
   }
 }
 
-@media (min-width: 900px) {
-  .journey-live-map-viewport {
-    left: 53%;
-    bottom: clamp(-7rem, -9vh, -3rem);
-    height: clamp(42rem, 98vh, 76rem);
-  }
-}
-
 @media (max-width: 760px) {
-  .journey-live-map-viewport {
-    bottom: -5rem;
-    height: min(70vh, 38rem);
+  .journey-live-map-canvas {
     opacity: 0.78;
   }
 
@@ -423,11 +299,6 @@ select {
   .notice-led-message {
     padding-inline-start: 1rem;
   }
-
-  .journey-live-map-track-halo,
-  .journey-live-map-service-pulse {
-    animation: none;
-  }
 }
 
 @keyframes notice-led-marquee {
@@ -437,28 +308,5 @@ select {
 
   to {
     transform: translateX(-50%);
-  }
-}
-
-@keyframes journey-live-map-route-pulse {
-  0%,
-  100% {
-    opacity: 0.24;
-  }
-
-  50% {
-    opacity: 0.44;
-  }
-}
-
-@keyframes journey-live-map-service-pulse {
-  from {
-    r: 2.2;
-    opacity: 0.32;
-  }
-
-  to {
-    r: 4.4;
-    opacity: 0;
   }
 }
