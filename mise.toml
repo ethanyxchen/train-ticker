@@ -17,6 +17,22 @@ description = "Run the linter"
 depends = ["install"]
 run = "npm run lint"
 
+[tasks.actionlint]
+description = "Lint GitHub Actions workflows"
+run = "mise x actionlint@1.7.7 -- actionlint"
+
+[tasks.zizmor]
+description = "Audit GitHub Actions workflows"
+run = "mise x zizmor@1.24.1 -- zizmor --no-online-audits --min-severity high .github/workflows"
+
+[tasks.actions-lint]
+description = "Run GitHub Actions checks"
+depends = ["actionlint", "zizmor"]
+
+[tasks.secrets-scan]
+description = "Scan for leaked secrets"
+run = "mise x trufflehog@3.95.5 -- trufflehog git file://. --fail --no-update --github-actions --results=verified,unknown"
+
 [tasks.test]
 description = "Run the test suite"
 depends = ["install"]
