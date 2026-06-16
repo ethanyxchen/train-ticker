@@ -257,12 +257,19 @@ function BoardHeader({
   tickers,
   columns,
   refreshing,
+  loading,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
   refreshing?: boolean;
+  loading?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns);
+  const statusLabel = loading ? "Loading" : refreshing ? "Updating" : "Live";
+  const statusClassName =
+    loading || refreshing
+      ? "animate-pulse bg-[var(--board-header)]"
+      : "bg-[var(--good)]";
 
   return (
     <div className="relative mx-auto w-fit">
@@ -281,14 +288,14 @@ function BoardHeader({
       </div>
       {refreshing !== undefined ? (
         <div
-          aria-label={refreshing ? "Updating" : "Live"}
+          aria-label={statusLabel}
           className="absolute right-[0.15rem] top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-end"
           role="status"
         >
           <span
             className={[
               "h-2 w-2 rounded-full",
-              refreshing ? "animate-pulse bg-[var(--board-header)]" : "bg-[var(--good)]",
+              statusClassName,
             ].join(" ")}
           />
         </div>
@@ -304,6 +311,7 @@ function BoardGridRow({
   animatedCells,
   animationId,
   switchable = true,
+  loading = false,
 }: {
   tickers: BoardTickers;
   columns: readonly BoardColumn[];
@@ -311,6 +319,7 @@ function BoardGridRow({
   animatedCells?: BoardRowAnimationState;
   animationId?: number | string;
   switchable?: boolean;
+  loading?: boolean;
 }) {
   const boardGridStyle = getBoardGridStyle(tickers, columns);
 
@@ -327,9 +336,12 @@ function BoardGridRow({
             align={column.align}
             tone={column.key === "status" && row ? row.statusTone : "neutral"}
             animationId={
-              hasValue && animatedCells?.[column.key] ? animationId : undefined
+              !loading && hasValue && animatedCells?.[column.key]
+                ? animationId
+                : undefined
             }
-            switchable={switchable && hasValue}
+            switchable={switchable && !loading && hasValue}
+            spinning={loading}
           />
         );
       })}
@@ -340,9 +352,11 @@ function BoardGridRow({
 function EmptyRow({
   tickers,
   compact,
+  loading,
 }: {
   tickers: BoardTickers;
   compact: boolean;
+  loading: boolean;
 }) {
   if (compact) {
     return (
@@ -351,11 +365,13 @@ function EmptyRow({
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[0]}
           switchable={false}
+          loading={loading}
         />
         <BoardGridRow
           tickers={tickers}
           columns={COMPACT_BOARD_COLUMNS[1]}
           switchable={false}
+          loading={loading}
         />
       </div>
     );
@@ -366,8 +382,37 @@ function EmptyRow({
       tickers={tickers}
       columns={BOARD_COLUMNS}
       switchable={false}
+      loading={loading}
     />
   );
+}
+
+function getBoardGridRowAnimationId({
+  loading,
+  animationState,
+  animateAllFields,
+  introAnimationId,
+  index,
+  row,
+  fallbackRowKey,
+}: {
+  loading: boolean;
+  animationState: BoardRowAnimationState | undefined;
+  animateAllFields: boolean;
+  introAnimationId: number | string | undefined;
+  index: number;
+  row: BoardRow;
+  fallbackRowKey: string;
+}) {
+  if (loading || !animationState) {
+    return undefined;
+  }
+
+  if (animateAllFields) {
+    return `intro:${introAnimationId}:${index}`;
+  }
+
+  return `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`;
 }
 
 export function JourneyBoard({
@@ -380,6 +425,7 @@ export function JourneyBoard({
 }: JourneyBoardProps) {
   const [compact, setCompact] = useState(false);
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
+  const loading = snapshot === undefined;
   const rows = useMemo(
     () => toBoardRows(journey, snapshot),
     [journey, snapshot],
@@ -448,7 +494,7 @@ export function JourneyBoard({
   }, [boardTickers]);
 
   return (
-    <section className="w-full">
+    <section className="w-full" aria-busy={loading}>
       <div className="overflow-hidden" ref={boardViewportRef}>
         <div
           className="w-full space-y-3"
@@ -460,6 +506,8 @@ export function JourneyBoard({
                 <BoardHeader
                   tickers={boardTickers}
                   columns={COMPACT_BOARD_COLUMNS[0]}
+                  refreshing={refreshing}
+                  loading={loading}
                 />
                 <BoardHeader
                   tickers={boardTickers}
@@ -478,24 +526,32 @@ export function JourneyBoard({
                       columns={COMPACT_BOARD_COLUMNS[0]}
                       row={row}
                       animatedCells={animatedRows[index]}
-                      animationId={
-                        animatedRows[index] &&
-                        (animateAllFields
-                          ? `intro:${introAnimationId}:${index}`
-                          : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
-                      }
+                      loading={loading}
+                      animationId={getBoardGridRowAnimationId({
+                        loading,
+                        animationState: animatedRows[index],
+                        animateAllFields,
+                        introAnimationId,
+                        index,
+                        row,
+                        fallbackRowKey,
+                      })}
                     />
                     <BoardGridRow
                       tickers={boardTickers}
                       columns={COMPACT_BOARD_COLUMNS[1]}
                       row={row}
                       animatedCells={animatedRows[index]}
-                      animationId={
-                        animatedRows[index] &&
-                        (animateAllFields
-                          ? `intro:${introAnimationId}:${index}`
-                          : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
-                      }
+                      loading={loading}
+                      animationId={getBoardGridRowAnimationId({
+                        loading,
+                        animationState: animatedRows[index],
+                        animateAllFields,
+                        introAnimationId,
+                        index,
+                        row,
+                        fallbackRowKey,
+                      })}
                     />
                   </div>
                 ))}
@@ -505,6 +561,7 @@ export function JourneyBoard({
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
                     compact
+                    loading={loading}
                   />
                 ))}
               </div>
@@ -515,6 +572,7 @@ export function JourneyBoard({
                 tickers={boardTickers}
                 columns={BOARD_COLUMNS}
                 refreshing={refreshing}
+                loading={loading}
               />
 
               <div className="space-y-2">
@@ -525,12 +583,16 @@ export function JourneyBoard({
                     columns={BOARD_COLUMNS}
                     row={row}
                     animatedCells={animatedRows[index]}
-                    animationId={
-                      animatedRows[index] &&
-                      (animateAllFields
-                        ? `intro:${introAnimationId}:${index}`
-                        : `${getBoardRowKey(row, fallbackRowKey)}:${row.time}:${row.platform}:${row.status}:${row.statusTone}`)
-                    }
+                    loading={loading}
+                    animationId={getBoardGridRowAnimationId({
+                      loading,
+                      animationState: animatedRows[index],
+                      animateAllFields,
+                      introAnimationId,
+                      index,
+                      row,
+                      fallbackRowKey,
+                    })}
                   />
                 ))}
 
@@ -539,6 +601,7 @@ export function JourneyBoard({
                     key={`empty-row-${index}`}
                     tickers={boardTickers}
                     compact={false}
+                    loading={loading}
                   />
                 ))}
               </div>

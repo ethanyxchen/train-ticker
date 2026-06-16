@@ -27,6 +27,7 @@ interface SplitFlapTextProps {
   tone?: JourneySnapshotTone;
   animationId?: number | string;
   switchable?: boolean;
+  spinning?: boolean;
 }
 
 type SplitFlapStyle = CSSProperties & {
@@ -221,9 +222,12 @@ export function SplitFlapText({
   align = "left",
   animationId,
   switchable = true,
+  spinning = false,
 }: SplitFlapTextProps) {
   const paddedValue = getPaddedSplitFlapValue(value, length, align);
   const [transientValue, setTransientValue] = useState<string | null>(null);
+  const [spinningReplayFrame, setSpinningReplayFrame] =
+    useState<DrivenReplayFrame | null>(null);
   const [drivenReplayFrame, setDrivenReplayFrame] =
     useState<DrivenReplayFrame | null>(null);
   const [manualReplayVersion, setManualReplayVersion] = useState(0);
@@ -239,6 +243,30 @@ export function SplitFlapText({
     animationId !== undefined && animationId !== committedAnimationId;
 
   useEffect(() => {
+    if (!spinning) {
+      return;
+    }
+
+    let step = 0;
+    const intervalId = window.setInterval(() => {
+      step += 1;
+      setSpinningReplayFrame({
+        previousValue: getSplitFlapValueAfterSteps(paddedValue, step - 1),
+        value: getSplitFlapValueAfterSteps(paddedValue, step),
+        version: step,
+      });
+    }, SPLIT_FLAP_TIMING_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [length, paddedValue, spinning]);
+
+  useEffect(() => {
+    if (spinning) {
+      return;
+    }
+
     const manualReplayChanged =
       manualReplayVersion !== previousManualReplayVersionRef.current;
     const animationChanged =
@@ -339,9 +367,15 @@ export function SplitFlapText({
 
       window.clearTimeout(timeoutId);
     };
-  }, [animationId, manualReplayVersion, paddedValue]);
+  }, [animationId, manualReplayVersion, paddedValue, spinning]);
 
-  const showAnimatedFlap = activeAnimationId !== null || hasPendingExternalAnimation;
+  const activeDrivenReplayFrame = spinning
+    ? spinningReplayFrame
+    : drivenReplayFrame;
+  const showAnimatedFlap =
+    (spinning && spinningReplayFrame !== null) ||
+    activeAnimationId !== null ||
+    hasPendingExternalAnimation;
   const staticContent = (
     <span
       className="split-flap-display train-ticker-split-flap"
@@ -364,9 +398,9 @@ export function SplitFlapText({
     );
   }
 
-  if (drivenReplayFrame !== null) {
+  if (activeDrivenReplayFrame !== null) {
     return renderHost(
-      renderDrivenReplayContent(drivenReplayFrame, length),
+      renderDrivenReplayContent(activeDrivenReplayFrame, length),
       switchable,
       paddedValue,
       () =>
