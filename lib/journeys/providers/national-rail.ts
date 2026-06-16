@@ -511,6 +511,22 @@ function dedupeRailServices(services: DarwinService[]): DarwinService[] {
   });
 }
 
+function buildRailServiceAlerts(
+  service: DarwinService,
+  journey: SavedJourney,
+): string[] {
+  const departure = formatBoardValue(service.std, "--:--");
+  const arrival = getJourneyArrival(service, journey);
+
+  return dedupeText([
+    service.cancelReason,
+    service.delayReason,
+    arrival.callingPoint?.cancelReason,
+    arrival.callingPoint?.delayReason,
+    ...(service.adhocAlerts ?? []),
+  ]).map((alert) => `${departure} - ${alert}`);
+}
+
 export const nationalRailProvider: JourneyProvider = {
   id: "national-rail",
   async search(query) {
@@ -544,11 +560,7 @@ export const nationalRailProvider: JourneyProvider = {
       ...boards.flatMap((currentBoard) =>
         (currentBoard.nrccMessages ?? []).map((message) => message.Value),
       ),
-      firstService?.cancelReason,
-      firstService?.delayReason,
-      firstArrival.callingPoint?.cancelReason,
-      firstArrival.callingPoint?.delayReason,
-      ...(firstService?.adhocAlerts ?? []),
+      ...departures.flatMap((service) => buildRailServiceAlerts(service, journey)),
       departures.length === 0
         ? "No services to the selected stop were visible in the current live departure-board window."
         : undefined,
