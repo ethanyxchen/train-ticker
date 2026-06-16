@@ -5,6 +5,7 @@ import {
   checkRateLimit,
   enforceRateLimit,
   getClientIp,
+  hasConfiguredRateLimitStore,
 } from "./rate-limit.ts";
 
 function createRequest(headers: Record<string, string> = {}) {
@@ -118,6 +119,22 @@ test("requires a configured store in production", async () => {
       Reflect.deleteProperty(process.env, "NODE_ENV");
     } else {
       process.env.NODE_ENV = originalNodeEnv;
+    }
+  }
+});
+
+test("recognizes Redis URL credentials", () => {
+  const originalRedisUrl = process.env.REDIS_URL;
+
+  process.env.REDIS_URL = "redis://localhost:6379";
+
+  try {
+    assert.equal(hasConfiguredRateLimitStore(), true);
+  } finally {
+    if (originalRedisUrl === undefined) {
+      Reflect.deleteProperty(process.env, "REDIS_URL");
+    } else {
+      process.env.REDIS_URL = originalRedisUrl;
     }
   }
 });

@@ -1,5 +1,5 @@
-import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { createClient, type RedisClientType } from "redis";
 
 type RateLimitStore = {
   increment: (
@@ -54,34 +54,48 @@ export const RATE_LIMIT_POLICIES = {
   },
 } satisfies Record<string, RateLimitPolicy>;
 
-class UpstashRateLimitStore implements RateLimitStore {
-  private readonly script;
+class RedisUrlRateLimitStore implements RateLimitStore {
+  private readonly client: RedisClientType;
+  private connection: Promise<RedisClientType> | undefined;
 
-  constructor(redis: Redis) {
-    this.script = redis.createScript<[number, number]>(RATE_LIMIT_SCRIPT);
+  constructor(url: string) {
+    this.client = createClient({ url });
+  }
+
+  private async connect() {
+    this.connection ??= this.client.connect().then(() => this.client);
+
+    return this.connection;
   }
 
   async increment(key: string, windowSeconds: number) {
-    const [count, ttlSeconds] = await this.script.exec(
-      [key],
-      [String(windowSeconds)],
-    );
+    const client = await this.connect();
+    const [count, ttlSeconds] = (await client.eval(RATE_LIMIT_SCRIPT, {
+      keys: [key],
+      arguments: [String(windowSeconds)],
+    })) as [number, number];
 
     return {
-      count,
-      ttlSeconds,
+      count: Number(count),
+      ttlSeconds: Number(ttlSeconds),
     };
   }
 }
 
 let store: RateLimitStore | null | undefined;
 
-function hasRedisCredentials() {
-  return Boolean(
-    (process.env.UPSTASH_REDIS_REST_URL &&
-      process.env.UPSTASH_REDIS_REST_TOKEN) ||
-      (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN),
-  );
+function getRedisUrl() {
+  return process.env.REDIS_URL?.trim() || null;
+}
+
+function createRateLimitStore() {
+  const redisUrl = getRedisUrl();
+
+  if (redisUrl) {
+    return new RedisUrlRateLimitStore(redisUrl);
+  }
+
+  return null;
 }
 
 function getRateLimitStore() {
@@ -89,11 +103,13 @@ function getRateLimitStore() {
     return store;
   }
 
-  store = hasRedisCredentials()
-    ? new UpstashRateLimitStore(Redis.fromEnv())
-    : null;
+  store = createRateLimitStore();
 
   return store;
+}
+
+export function hasConfiguredRateLimitStore() {
+  return Boolean(getRedisUrl());
 }
 
 export function getClientIp(request: Request) {
