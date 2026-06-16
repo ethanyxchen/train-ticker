@@ -400,9 +400,12 @@ test(
         snapshot.alerts.filter((alert) => alert.startsWith("10:")),
         [
           "10:10 - Earlier signalling fault at West Hampstead.",
-          "10:10 - This train has fewer coaches than usual.",
           "10:20 - This service has been delayed by a fault with the signalling system.",
         ],
+      );
+      assert.equal(
+        snapshot.alerts.some((alert) => alert.includes("fewer coaches")),
+        false,
       );
       assert.equal(
         requests.some((request) => request.url.includes("/api/v2/")),

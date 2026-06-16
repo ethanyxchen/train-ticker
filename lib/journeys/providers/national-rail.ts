@@ -523,7 +523,6 @@ function buildRailServiceAlerts(
     service.delayReason,
     arrival.callingPoint?.cancelReason,
     arrival.callingPoint?.delayReason,
-    ...(service.adhocAlerts ?? []),
   ]).map((alert) => `${departure} - ${alert}`);
 }
 
