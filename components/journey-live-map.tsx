@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
 } from "react";
 import type {
@@ -547,10 +548,14 @@ export function JourneyLiveMap({
 }: JourneyLiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const [loadedMapKey, setLoadedMapKey] = useState<string | null>(null);
   const model = useMemo(
     () => getJourneyLiveMapModel(journey, snapshot),
     [journey, snapshot],
   );
+  const apiKey = maptilerApiKey?.trim();
+  const mapLoadKey = `${apiKey ?? ""}:${model.routeCoordinates.join("|")}`;
+  const mapLoaded = Boolean(apiKey) && loadedMapKey === mapLoadKey;
   const style: JourneyLiveMapStyle = {
     "--journey-route-color": model.routeColor,
     "--journey-route-glow": model.routeGlow,
@@ -558,7 +563,6 @@ export function JourneyLiveMap({
 
   useEffect(() => {
     const container = containerRef.current;
-    const apiKey: string | undefined = maptilerApiKey?.trim();
 
     if (!container || !apiKey) {
       return;
@@ -617,9 +621,14 @@ export function JourneyLiveMap({
       mapRef.current = map;
 
       map.on("load", () => {
+        if (disposed) {
+          return;
+        }
+
         map.touchZoomRotate.disableRotation();
         fitJourneyMap(map, model, container);
         addJourneyMapLayers(map, model);
+        setLoadedMapKey(mapLoadKey);
         resizeObserver = new ResizeObserver(() => {
           fitJourneyMap(map, model, container);
         });
@@ -646,7 +655,7 @@ export function JourneyLiveMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [maptilerApiKey, model]);
+  }, [apiKey, mapLoadKey, model]);
 
   return (
     <section
@@ -661,7 +670,7 @@ export function JourneyLiveMap({
       <p className="sr-only">
         {model.routeLabel} has {model.services.length} active services.
       </p>
-      {!maptilerApiKey?.trim() ? (
+      {!mapLoaded ? (
         <div className="journey-live-map-fallback" aria-hidden="true" />
       ) : null}
       <div className="journey-live-map-attribution">

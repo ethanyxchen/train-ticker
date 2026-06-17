@@ -1,5 +1,7 @@
 import { TrainTickerApp } from "@/components/train-ticker-app";
 
+export const dynamic = "force-dynamic";
+
 function isTruthyFlag(value: string | undefined) {
   return /^\s*(1|true|on|yes)\s*$/i.test(value ?? "");
 }
