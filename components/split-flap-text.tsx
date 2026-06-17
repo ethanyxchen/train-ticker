@@ -54,7 +54,7 @@ const splitFlapStyle = {
 } satisfies SplitFlapStyle;
 
 const splitFlapCharacters = [...SPLIT_FLAP_CHARACTERS];
-const SPLIT_FLAP_TIMING_MS = 112;
+const SPLIT_FLAP_TIMING_MS = 80;
 const REPLAY_SETTLE_MS = 70;
 const ANIMATION_BUFFER_MS = 140;
 
