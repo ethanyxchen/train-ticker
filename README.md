@@ -18,7 +18,7 @@ Add the values you need in `.env.local`.
 - `DARWIN_RDM_AUTH_TYPE=api-key` is the default Rail Data Marketplace proxy mode.
 - `NEXT_PUBLIC_POLL_INTERVAL_MS` controls board refresh cadence in milliseconds and defaults to `60000`.
 - `HARD_CODED_ALERTS` toggles a hardcoded alert banner message at the top of the app when set to `true`.
-- `NEXT_PUBLIC_MAPTILER_API_KEY` enables the UK map background.
+- `MAPTILER_API_KEY` enables the UK map background.
 - `REDIS_URL` enables public API rate limiting through Vercel Redis.
 - `RATE_LIMIT_SEARCHES_PER_MINUTE` controls search requests per IP and defaults to `30`.
 - `RATE_LIMIT_JOURNEYS_PER_MINUTE` controls live journey refreshes per IP and defaults to `10`.

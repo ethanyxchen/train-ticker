@@ -72,6 +72,7 @@ export type JourneyLiveMapModel = {
 
 interface JourneyLiveMapProps {
   journey: SavedJourney;
+  maptilerApiKey?: string;
   snapshot: JourneySnapshot | undefined;
 }
 
@@ -111,7 +112,6 @@ type JourneyServiceFeatureCollection = FeatureCollection<
   JourneyServiceProperties
 >;
 
-const MAPTILER_API_KEY = process.env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim();
 const MAPTILER_ROUTE_SOURCE_ID = "journey-route";
 const MAPTILER_STATIONS_SOURCE_ID = "journey-stations";
 const MAPTILER_SERVICES_SOURCE_ID = "journey-services";
@@ -540,7 +540,11 @@ function addJourneyMapLayers(map: MapLibreMap, model: JourneyLiveMapModel) {
   });
 }
 
-export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
+export function JourneyLiveMap({
+  journey,
+  maptilerApiKey,
+  snapshot,
+}: JourneyLiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const model = useMemo(
@@ -554,13 +558,13 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
 
   useEffect(() => {
     const container = containerRef.current;
-    const apiKey = MAPTILER_API_KEY;
+    const apiKey: string | undefined = maptilerApiKey?.trim();
 
     if (!container || !apiKey) {
       return;
     }
 
-    const maptilerApiKey = apiKey;
+    const styleApiKey: string = apiKey;
     const abortController = new AbortController();
     let animationFrameId = 0;
     let disposed = false;
@@ -574,7 +578,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
       }
 
       const styleUrl = new URL(sdk.MapStyle.DATAVIZ.DARK.getExpandedStyleURL());
-      styleUrl.searchParams.set("key", maptilerApiKey);
+      styleUrl.searchParams.set("key", styleApiKey);
 
       let mapStyle: StyleSpecification;
 
@@ -642,7 +646,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [model]);
+  }, [maptilerApiKey, model]);
 
   return (
     <section
@@ -657,7 +661,7 @@ export function JourneyLiveMap({ journey, snapshot }: JourneyLiveMapProps) {
       <p className="sr-only">
         {model.routeLabel} has {model.services.length} active services.
       </p>
-      {!MAPTILER_API_KEY ? (
+      {!maptilerApiKey?.trim() ? (
         <div className="journey-live-map-fallback" aria-hidden="true" />
       ) : null}
       <div className="journey-live-map-attribution">

@@ -113,3 +113,15 @@ test("renders the selected journey as one map-backed page", () => {
   assert.equal(html.includes("BOARD"), false);
   assert.equal(html.includes("+"), false);
 });
+
+test("renders no static map fallback when a MapTiler key is available", () => {
+  const html = renderToString(
+    React.createElement(JourneyLiveMap, {
+      journey,
+      maptilerApiKey: "test-key",
+      snapshot,
+    }),
+  );
+
+  assert.equal(html.includes("journey-live-map-fallback"), false);
+});

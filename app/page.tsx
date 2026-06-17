@@ -8,6 +8,12 @@ export default function Home() {
   const hardCodedAlertEnabled = isTruthyFlag(
     process.env.HARD_CODED_ALERTS,
   );
+  const maptilerApiKey = process.env.MAPTILER_API_KEY?.trim();
 
-  return <TrainTickerApp hardCodedAlertEnabled={hardCodedAlertEnabled} />;
+  return (
+    <TrainTickerApp
+      hardCodedAlertEnabled={hardCodedAlertEnabled}
+      maptilerApiKey={maptilerApiKey}
+    />
+  );
 }
