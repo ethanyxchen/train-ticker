@@ -71,7 +71,7 @@ function renderHost(
   onReplay: () => void,
 ) {
   const className = switchable
-    ? "inline-flex cursor-pointer flex-nowrap rounded-[0.18rem] border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
+    ? "inline-flex cursor-pointer flex-nowrap rounded-[0.18rem] border-0 bg-transparent p-0 transition-transform active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--board-header)]"
     : "inline-flex flex-nowrap";
 
   if (!switchable) {

@@ -356,8 +356,8 @@ export function TrainTickerApp({
       </div>
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 px-3 text-[0.8rem] uppercase leading-relaxed tracking-[0.12em] text-[rgba(247,244,238,0.42)] sm:bottom-6">
-        <div className="relative mx-auto flex h-12 w-full max-w-[88rem] items-end px-2 sm:px-0">
-          <div className="absolute left-0 sm:left-2 flex flex-wrap items-center justify-start gap-x-2 gap-y-1 text-[0.6rem]">
+        <div className="mx-auto grid w-full max-w-[88rem] gap-y-2 px-2 text-center sm:h-12 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:px-0">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[0.6rem] sm:justify-self-start sm:text-left">
             <span>
               By{" "}
               <a
@@ -382,7 +382,7 @@ export function TrainTickerApp({
               </a>
             </span>
           </div>
-          <div className="w-full text-center">
+          <div className="sm:col-start-2">
             <span aria-label="Command key" role="img">
               &#8984;
             </span>{" "}
