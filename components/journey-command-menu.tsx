@@ -181,7 +181,7 @@ function LocationSearchField({
         }}
         placeholder={placeholder}
         role="combobox"
-        className="h-12 w-full rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] px-4 text-base text-[var(--paper)] outline-none transition placeholder:text-[rgba(247,244,238,0.46)] focus:border-[var(--board-header)]"
+        className="h-12 w-full rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] px-4 text-base text-[var(--paper)] outline-none transition-[border-color,background-color] duration-150 ease-out placeholder:text-[rgba(247,244,238,0.46)] focus:border-[var(--board-header)]"
       />
 
       {isOpen && (visibleResults.length > 0 || visibleError) ? (
@@ -206,7 +206,7 @@ function LocationSearchField({
               }}
               onMouseEnter={() => setActiveIndex(index)}
               role="option"
-              className={`flex w-full flex-col gap-1 border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-left first:border-t-0 ${
+              className={`flex min-h-12 w-full flex-col gap-1 border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-left transition-colors duration-150 ease-out first:border-t-0 ${
                 visibleActiveIndex === index
                   ? "bg-[rgba(255,255,255,0.06)]"
                   : "hover:bg-[rgba(255,255,255,0.04)]"
@@ -292,20 +292,20 @@ function JourneyCommandMenuForm({
           });
           onClose();
         }}
-        className="w-full max-w-[44rem] overflow-visible rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#111214] shadow-[0_30px_80px_rgba(0,0,0,0.46)]"
+        className="w-full max-w-[44rem] overflow-visible rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#111214] shadow-[0_30px_80px_rgba(0,0,0,0.46)]"
       >
         <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-4 py-3">
           <div>
             <div className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--board-header)]">
               Journey
             </div>
-            <div className="text-lg text-[var(--paper)]">Find a train board</div>
+            <h2 className="text-lg text-[var(--paper)]">Find a train board</h2>
           </div>
           {canClose ? (
             <button
               type="button"
               onClick={onClose}
-              className="h-9 rounded-md border border-[rgba(255,255,255,0.1)] px-3 text-sm text-[rgba(247,244,238,0.72)] transition hover:border-[rgba(255,255,255,0.2)] hover:text-[var(--paper)]"
+              className="min-h-10 rounded-md border border-[rgba(255,255,255,0.1)] px-3 text-sm text-[rgba(247,244,238,0.72)] transition-[scale,border-color,color] duration-150 ease-out hover:border-[rgba(255,255,255,0.2)] hover:text-[var(--paper)] active:scale-[0.96] focus:outline-none focus-visible:border-[var(--board-header)] focus-visible:text-[var(--paper)]"
             >
               Close
             </button>
@@ -331,7 +331,7 @@ function JourneyCommandMenuForm({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-12 w-full rounded-lg bg-[var(--board-header)] px-4 text-sm font-semibold uppercase tracking-[0.12em] text-[#111214] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[rgba(255,255,255,0.08)] disabled:text-[rgba(247,244,238,0.42)]"
+            className="h-12 w-full rounded-lg bg-[var(--board-header)] px-4 text-sm font-semibold uppercase tracking-[0.12em] text-[#111214] transition-[scale,filter,background-color,color] duration-150 ease-out hover:brightness-105 active:scale-[0.96] focus:outline-none focus-visible:brightness-110 disabled:cursor-not-allowed disabled:bg-[rgba(255,255,255,0.08)] disabled:text-[rgba(247,244,238,0.42)] disabled:hover:brightness-100 disabled:active:scale-100"
           >
             Open board
           </button>
